@@ -1,5 +1,5 @@
 import { useTheme } from '../hooks/useTheme';
-import { Moon, Sun, Bell, Search } from 'lucide-react';
+import { Moon, Sun, Bell, Search, Wallet } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Navbar() {
@@ -7,14 +7,25 @@ export default function Navbar() {
   const { user, logout } = useAuth();
 
   return (
-    <header className="h-20 px-6 md:px-10 bg-[var(--bg-color)]/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/5 flex items-center justify-between sticky top-0 z-10 transition-colors duration-300">
+    <header className="h-20 px-4 md:px-10 bg-[var(--bg-color)]/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/5 flex items-center justify-between sticky top-0 z-10 transition-colors duration-300">
       <div className="flex items-center w-1/3">
+        {/* Mobile Logo */}
+        <div className="md:hidden flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <Wallet size={16} strokeWidth={2.5} />
+          </div>
+          <h1 className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-400 dark:from-emerald-400 dark:to-teal-300 pt-0.5">
+            WalletNest<span className="text-emerald-500">.</span>
+          </h1>
+        </div>
+        
+        {/* Desktop Search */}
         <div className="relative w-full max-w-sm hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
             placeholder="Search transactions..." 
-            className="w-full bg-gray-100 dark:bg-slate-800 border-none rounded-full py-2 pl-10 pr-4 focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition-all"
+            className="w-full bg-gray-100 dark:bg-slate-800 border-none rounded-2xl py-2.5 pl-10 pr-4 focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition-all"
           />
         </div>
       </div>

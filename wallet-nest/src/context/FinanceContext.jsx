@@ -23,7 +23,6 @@ export function FinanceProvider({ children }) {
   const [transactions, setTransactions] = useState(() => getExpenses());
   const [goals, setGoals] = useState(() => getGoals(initialGoals));
   const [categories, setCategories] = useState(() => getGenericData('wn_categories', defaultCategories));
-  const [financeLoading, setFinanceLoading] = useState(false);
 
   // Sync state to local storage on change using utility routes
   useEffect(() => {
@@ -120,7 +119,6 @@ export function FinanceProvider({ children }) {
     addContribution,
     addCategory,
     removeCategory,
-    financeLoading,
   };
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
