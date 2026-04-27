@@ -12,7 +12,7 @@ const defaultData = [
 
 export default function ChartSection({ title = 'Spending Overview', data = defaultData }) {
   return (
-    <div className="bg-[var(--card-bg)] rounded-3xl p-6 shadow-sm border border-[var(--border-color)] dark:border-white/5 relative overflow-hidden h-[400px] flex flex-col mt-6 transition-all duration-300">
+    <div className="card-premium p-6 mt-6 flex flex-col h-[400px]">
       <div className="flex justify-between items-center mb-6">
         <h3 className="font-semibold text-lg text-[var(--text-color)]">{title}</h3>
         <select className="bg-gray-100 dark:bg-slate-800 border-none rounded-lg text-sm px-3 py-1.5 focus:ring-2 focus:ring-emerald-500 outline-none text-[var(--text-color)]">
@@ -37,7 +37,7 @@ export default function ChartSection({ title = 'Spending Overview', data = defau
               contentStyle={{ borderRadius: '12px', border: 'none', background: 'var(--card-bg)', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', color: 'var(--text-color)' }}
               itemStyle={{ color: '#10b981' }}
             />
-            <Area type="monotone" dataKey="spend" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorSpend)" />
+            <Area type="monotone" dataKey="spend" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorSpend)" animationDuration={1500} animationEasing="ease-in-out" />
           </AreaChart>
         </ResponsiveContainer>
       </div>

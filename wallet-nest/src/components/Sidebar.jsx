@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Receipt, BrainCircuit, Target, PieChart, History, Wallet } from 'lucide-react';
+import { LayoutDashboard, Receipt, BrainCircuit, Target, PieChart, History, Wallet, UserCircle2 } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -8,46 +8,46 @@ const navItems = [
   { name: 'Goals', path: '/goals', icon: Target },
   { name: 'Reports', path: '/reports', icon: PieChart },
   { name: 'History', path: '/history', icon: History },
+  { name: 'Profile', path: '/profile', icon: UserCircle2 },
 ];
 
 export default function Sidebar() {
   return (
-    <aside className="w-64 bg-[var(--card-bg)] border-r border-[var(--border-color)] flex flex-col hidden md:flex transition-colors duration-300">
-      <div className="p-6 flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-xl bg-emerald-500 shadow-emerald-500/50 shadow-lg flex items-center justify-center text-white">
-          <Wallet size={24} />
+    <aside className="w-64 m-4 rounded-3xl border border-gray-200 dark:border-white/5 bg-[var(--card-bg)] backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(255,255,255,0.02)] flex-col hidden md:flex h-[calc(100vh-2rem)] overflow-hidden transition-colors duration-300">
+      <div className="p-6 flex items-center space-x-3 mb-2 border-b border-gray-100 dark:border-slate-800/50">
+        <div className="relative flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-[0_4px_12px_rgba(16,185,129,0.3)] text-white group cursor-pointer transition-transform hover:scale-105 active:scale-95">
+          <div className="absolute inset-0 bg-white/20 rounded-2xl animate-pulse"></div>
+          <Wallet size={20} strokeWidth={2.5} className="relative z-10" />
         </div>
-        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-blue-500">
-          Wallet Nest
-        </h1>
+        <div className="flex flex-col cursor-pointer group">
+          <h1 className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-400 dark:from-emerald-400 dark:to-teal-300 transition-colors group-hover:from-emerald-500 group-hover:to-teal-300">
+            WalletNest<span className="text-emerald-500">.</span>
+          </h1>
+          <span className="text-[9px] font-black tracking-[0.3em] uppercase text-gray-400 dark:text-gray-500 mt-0.5">
+            Finance Engine
+          </span>
+        </div>
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-2">
+      <nav className="flex-1 px-3 py-3 space-y-1.5">
         {navItems.map((item) => (
           <NavLink
             key={item.name}
             to={item.path}
             className={({ isActive }) =>
-              `flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+              `flex items-center space-x-2.5 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm ${
                 isActive
                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium'
                   : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800'
               }`
             }
           >
-            <item.icon size={20} />
+            <item.icon size={18} />
             <span>{item.name}</span>
           </NavLink>
         ))}
       </nav>
 
-      <div className="p-6 border-t border-[var(--border-color)]">
-        <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 text-white shadow-lg mx-auto relative overflow-hidden group">
-          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-          <p className="text-sm font-medium relative z-10">Pro Plan</p>
-          <p className="text-xs opacity-90 relative z-10">Unlock all features</p>
-        </div>
-      </div>
     </aside>
   );
 }

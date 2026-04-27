@@ -5,7 +5,7 @@ export default function ChatMentorBox() {
   const { metrics } = useFinance();
 
   return (
-    <div className="bg-[var(--card-bg)] rounded-3xl overflow-hidden shadow-sm border border-[var(--border-color)] dark:border-white/5 flex flex-col h-[500px] transition-colors duration-300">
+    <div className="card-premium flex flex-col h-[500px]">
       {/* Header */}
       <div className="p-4 border-b border-[var(--border-color)] flex items-center space-x-3 bg-gradient-to-r from-blue-50/50 to-emerald-50/50 dark:from-blue-900/20 dark:to-emerald-900/20">
         <div className="relative">
