@@ -310,10 +310,7 @@ export default function MentorChat() {
       </div>
 
       <p className="text-center text-[11px] text-gray-400 mt-4 px-4 leading-relaxed">
-        AI can be wrong. Use this as guidance, not financial advice. Prefer{' '}
-        <code className="text-gray-500 dark:text-gray-500">VITE_FINANCE_CHAT_PROXY_URL</code> and{' '}
-        <code className="text-gray-500 dark:text-gray-500">npm run finance-chat-proxy</code> with{' '}
-        <code className="text-gray-500 dark:text-gray-500">GEMINI_API_KEY</code> on the server.
+        AI can be wrong. Use this as guidance, not financial advice.
       </p>
     </div>
   );

@@ -1,132 +1,139 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AuthContext } from './AuthCtx';
-import { loginRequest, signupRequest, updateProfileRequest } from '../services/authService';
+import { supabase } from '../lib/supabaseClient';
 
-const USERS_KEY = 'wallet-users';
-const SESSION_KEY = 'wallet-session';
-const TOKEN_KEY = 'wallet-token';
 const DEFAULT_AVATAR = 'https://api.dicebear.com/7.x/notionists/svg?seed=WalletNest&backgroundColor=10b981';
 
-function readUsers() {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
-
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(readUsers);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-    } catch {
-      return null;
-    }
-  });
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '');
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true); // true until session is resolved
 
-  const signup = async ({ name, email, password }) => {
+  // ------------------------------------------------------------------
+  // Session bootstrap — runs once on mount.
+  // Restores an existing Supabase session (survives page reload).
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    // Get the current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ? mapUser(session.user) : null);
+      setAuthLoading(false);
+    });
+
+    // Listen for future auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ? mapUser(session.user) : null);
+      },
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ------------------------------------------------------------------
+  // Map Supabase user object to our app's user shape.
+  // ------------------------------------------------------------------
+  function mapUser(supaUser) {
+    const meta = supaUser.user_metadata || {};
+    return {
+      id: supaUser.id,
+      email: supaUser.email,
+      name: meta.name || meta.full_name || supaUser.email?.split('@')[0] || 'Student',
+      avatar:
+        meta.avatar ||
+        `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(meta.name || supaUser.email || 'Student')}&backgroundColor=10b981`,
+    };
+  }
+
+  // ------------------------------------------------------------------
+  // Auth actions
+  // ------------------------------------------------------------------
+  const signup = useCallback(async ({ name, email, password }) => {
     setAuthLoading(true);
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedName = name.trim();
     try {
-      const response = await signupRequest({ name: normalizedName, email: normalizedEmail, password });
-      const session = response?.user || response;
-      const receivedToken = response?.token || '';
-      if (receivedToken) {
-        setToken(receivedToken);
-        localStorage.setItem(TOKEN_KEY, receivedToken);
-      }
-      setUser(session);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-      return { ok: true };
-    } catch {
-      if (users.some((entry) => entry.email === normalizedEmail)) {
-        return { ok: false, message: 'Email is already registered.' };
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: {
+            name: name.trim(),
+            avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(name.trim())}&backgroundColor=10b981`,
+          },
+        },
+      });
+
+      if (error) return { ok: false, message: error.message };
+
+      // If email confirmation is disabled, session is returned immediately
+      if (data.session) {
+        setUser(mapUser(data.user));
       }
 
-      const avatar = `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(normalizedName || normalizedEmail)}&backgroundColor=10b981`;
-      const newUser = { id: Date.now(), name: normalizedName, email: normalizedEmail, password, avatar };
-      const nextUsers = [...users, newUser];
-      setUsers(nextUsers);
-      localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
-
-      const session = { id: newUser.id, name: newUser.name, email: newUser.email, avatar: newUser.avatar };
-      setUser(session);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       return { ok: true };
+    } catch (err) {
+      return { ok: false, message: err.message || 'Signup failed.' };
     } finally {
       setAuthLoading(false);
     }
-  };
+  }, []);
 
-  const login = async ({ email, password }) => {
+  const login = useCallback(async ({ email, password }) => {
     setAuthLoading(true);
-    const normalizedEmail = email.trim().toLowerCase();
     try {
-      const response = await loginRequest({ email: normalizedEmail, password });
-      const session = response?.user || response;
-      const receivedToken = response?.token || '';
-      if (receivedToken) {
-        setToken(receivedToken);
-        localStorage.setItem(TOKEN_KEY, receivedToken);
-      }
-      setUser(session);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) return { ok: false, message: error.message };
+      setUser(mapUser(data.user));
       return { ok: true };
-    } catch {
-      const existing = users.find((entry) => entry.email === normalizedEmail && entry.password === password);
-      if (!existing) {
-        return { ok: false, message: 'Invalid email or password.' };
-      }
-      const session = { id: existing.id, name: existing.name, email: existing.email, avatar: existing.avatar || DEFAULT_AVATAR };
-      setUser(session);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: err.message || 'Login failed.' };
     } finally {
       setAuthLoading(false);
     }
-  };
+  }, []);
 
-  const updateProfile = async ({ name, avatar }) => {
-    if (!user) return { ok: false, message: 'No active session.' };
-    const normalizedName = name.trim();
-    if (!normalizedName) return { ok: false, message: 'Name cannot be empty.' };
-    setAuthLoading(true);
-    try {
-      const response = await updateProfileRequest({ name: normalizedName, avatar: avatar || DEFAULT_AVATAR }, token);
-      const nextSession = response?.user || { ...user, name: normalizedName, avatar: avatar || DEFAULT_AVATAR };
-      setUser(nextSession);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
-      return { ok: true };
-    } catch {
-      const nextUsers = users.map((entry) =>
-        entry.id === user.id ? { ...entry, name: normalizedName, avatar: avatar || DEFAULT_AVATAR } : entry,
-      );
-      setUsers(nextUsers);
-      localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
+  const updateProfile = useCallback(
+    async ({ name, avatar }) => {
+      if (!user) return { ok: false, message: 'No active session.' };
+      const trimmedName = name.trim();
+      if (!trimmedName) return { ok: false, message: 'Name cannot be empty.' };
 
-      const nextSession = { ...user, name: normalizedName, avatar: avatar || DEFAULT_AVATAR };
-      setUser(nextSession);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
-      return { ok: true };
-    } finally {
-      setAuthLoading(false);
-    }
-  };
+      setAuthLoading(true);
+      try {
+        const { error } = await supabase.auth.updateUser({
+          data: { name: trimmedName, avatar: avatar || DEFAULT_AVATAR },
+        });
+        if (error) return { ok: false, message: error.message };
 
-  const logout = () => {
+        setUser((prev) => ({
+          ...prev,
+          name: trimmedName,
+          avatar: avatar || DEFAULT_AVATAR,
+        }));
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, message: err.message || 'Profile update failed.' };
+      } finally {
+        setAuthLoading(false);
+      }
+    },
+    [user],
+  );
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    setToken('');
-    localStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem(TOKEN_KEY);
-  };
+  }, []);
 
+  // ------------------------------------------------------------------
+  // Provider value — same shape as the old context so all consumers
+  // (Login, Signup, Profile, Navbar, ProtectedRoute) keep working.
+  // ------------------------------------------------------------------
   const value = {
     user,
-    token,
+    token: null, // no longer used; kept for interface compat
     isAuthenticated: Boolean(user),
     authLoading,
     signup,

@@ -73,7 +73,7 @@ function fallbackReply(userText, contextBlock) {
       'If you have high-interest debt, prioritize **minimums everywhere** then avalanche the highest APR. Avoid new BNPL while you stabilize.';
   }
 
-  return `${body}\n\n---\n**Your snapshot (for context)**\n${contextBlock}\n\n_(Gemini not configured or unavailable — this is a local mentor reply.)_`;
+  return `${body}\n\n---\n**Your snapshot (for context)**\n${contextBlock}`;
 }
 
 /**
@@ -81,9 +81,11 @@ function fallbackReply(userText, contextBlock) {
  * @returns {Promise<string>}
  */
 export async function sendMentorMessage({ messages, financeContext }) {
+  const defaultDevProxyUrl = import.meta.env.DEV ? 'http://localhost:8787/api/finance-chat' : '';
   const proxyUrl = (
     import.meta.env.VITE_FINANCE_CHAT_PROXY_URL ||
     import.meta.env.VITE_MENTOR_PROXY_URL ||
+    defaultDevProxyUrl ||
     ''
   ).trim().replace(/\/+$/, '');
 
@@ -96,15 +98,14 @@ export async function sendMentorMessage({ messages, financeContext }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = typeof data?.error === 'string' ? data.error : data?.error?.message || res.statusText;
-        return `${fallbackReply(lastUserText(messages), financeContext)}\n\n_(Mentor proxy: ${err})_`;
+        return fallbackReply(lastUserText(messages), financeContext);
       }
       if (typeof data?.text === 'string' && data.text.trim()) {
         return data.text.trim();
       }
       return fallbackReply(lastUserText(messages), financeContext);
     } catch {
-      // fall through to client key or local fallback
+      return fallbackReply(lastUserText(messages), financeContext);
     }
   }
 
@@ -140,8 +141,7 @@ export async function sendMentorMessage({ messages, financeContext }) {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const msg = data?.error?.message || res.statusText || 'Gemini request failed';
-      return `${fallbackReply(lastUserText(messages), financeContext)}\n\n_(Gemini error: ${msg})_`;
+      return fallbackReply(lastUserText(messages), financeContext);
     }
 
     const text =

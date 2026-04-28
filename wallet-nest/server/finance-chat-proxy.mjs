@@ -11,14 +11,33 @@
  *   }
  */
 
-import 'dotenv/config';
+import fs from 'node:fs';
+import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
+
+// Load env from root `.env` (recommended), with a fallback to `server/.env`.
+if (fs.existsSync('.env')) dotenv.config({ path: '.env' });
+if (!process.env.GEMINI_API_KEY && fs.existsSync('server/.env')) dotenv.config({ path: 'server/.env' });
 
 const PORT = Number(process.env.PORT || process.env.MENTOR_PROXY_PORT || 8787);
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
+
+function buildCorsOptions() {
+  const raw = String(CORS_ORIGIN || '').trim();
+  if (!raw || raw === '*') return { origin: true };
+  const allowed = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  if (allowed.length <= 1) return { origin: allowed[0] };
+  return {
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowed.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+  };
+}
 
 const MENTOR_SYSTEM = `You are WalletNest's AI Finance Mentor: concise, encouraging, and practical.
 You speak in short paragraphs. Use Indian Rupees (Rs) when mentioning money.
@@ -60,11 +79,11 @@ async function geminiGenerate({ messages, financeContext }) {
 
 const app = express();
 
-app.use(cors({ origin: CORS_ORIGIN }));
+app.use(cors(buildCorsOptions()));
 app.use(express.json({ limit: '500kb' }));
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'finance-chat-proxy' });
+  res.json({ ok: true, service: 'finance-chat-proxy', hasGeminiKey: Boolean(GEMINI_KEY) });
 });
 
 app.post('/api/finance-chat', async (req, res) => {
@@ -89,3 +108,6 @@ app.listen(PORT, () => {
   console.log(`WalletNest finance chat proxy -> http://localhost:${PORT}/api/finance-chat`);
   console.log(`CORS origin: ${CORS_ORIGIN}`);
 });
+
+// Keep process alive reliably in all environments.
+setInterval(() => {}, 60_000);
