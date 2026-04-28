@@ -103,7 +103,7 @@ export function FinanceProvider({ children }) {
       // User logged out — reset to defaults
       setTransactions([]);
       setGoals([]);
-      setMonthlyBudgetLocal(8000);
+      setMonthlyBudgetLocal(0);
       setCategoriesLocal(defaultCategories);
       setDataLoading(false);
       return;

@@ -24,6 +24,7 @@ const PORT = Number(process.env.PORT || process.env.MENTOR_PROXY_PORT || 8787);
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
 function buildCorsOptions() {
   const raw = String(CORS_ORIGIN || '').trim();
@@ -106,6 +107,7 @@ app.use((_req, res) => {
 
 app.listen(PORT, () => {
   console.log(`WalletNest finance chat proxy -> http://localhost:${PORT}/api/finance-chat`);
+  console.log(`Environment: ${NODE_ENV}`);
   console.log(`CORS origin: ${CORS_ORIGIN}`);
 });
 
