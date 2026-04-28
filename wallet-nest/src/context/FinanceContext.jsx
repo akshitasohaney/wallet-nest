@@ -56,6 +56,17 @@ export function FinanceProvider({ children }) {
         .single(),
     ]);
 
+    const settingsMissing = settingsRes.error?.code === 'PGRST116';
+    if (expRes.error || goalRes.error || (settingsRes.error && !settingsMissing)) {
+      console.error('refreshData error:', {
+        expenses: expRes.error?.message,
+        goals: goalRes.error?.message,
+        settings: settingsRes.error?.message,
+      });
+      setDataLoading(false);
+      return false;
+    }
+
     setTransactions(
       (expRes.data || []).map((r) => ({
         id: r.id,
@@ -161,29 +172,27 @@ export function FinanceProvider({ children }) {
   const addExpense = useCallback(
     async ({ title, note, amount, category, date, mood }) => {
       if (!userId) return false;
+      const normalizedAmount = Number(amount);
+      if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return false;
 
       const row = {
         user_id: userId,
-        title: title || note || `${category} Expense`,
-        amount: -Math.abs(Number(amount)),
-        category,
+        title: title || note || `${category || 'Other'} Expense`,
+        amount: -Math.abs(normalizedAmount),
+        category: category || 'Other',
         date,
         mood,
         note,
       };
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('expenses')
-        .insert(row)
-        .select()
-        .single();
+        .insert(row);
 
       if (error) {
         console.error('addExpense error:', error.message);
         return false;
       }
-
-      if (!data) return false;
 
       await refreshData();
       return true;
