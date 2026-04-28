@@ -7,9 +7,12 @@ export default function AddExpenses() {
   const { transactions, addExpense, metrics } = useFinance();
   const [showToast, setShowToast] = useState(false);
 
-  const handleSubmit = (expense) => {
-    addExpense(expense);
-    setShowToast(true);
+  const handleSubmit = async (expense) => {
+    const inserted = await addExpense(expense);
+    if (inserted) {
+      setShowToast(true);
+    }
+    return inserted;
   };
 
   useEffect(() => {
@@ -22,13 +25,13 @@ export default function AddExpenses() {
   return (
     <div className="max-w-7xl mx-auto animation-fade-in flex flex-col xl:flex-row gap-10 pb-12 px-2">
       {/* Toast Notification */}
-      <div className={`fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out flex items-center justify-center gap-3 px-6 py-4 rounded-2xl shadow-2xl bg-slate-900 border border-emerald-500/30 ${
+      <div className={`fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out flex items-center justify-center gap-3 px-6 py-4 rounded-2xl shadow-2xl bg-white dark:bg-slate-900 border border-emerald-500/30 ${
         showToast ? 'translate-y-0 opacity-100 scale-100' : '-translate-y-10 opacity-0 scale-95 pointer-events-none'
       }`}>
         <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
           <Zap size={16} strokeWidth={3} />
         </div>
-        <p className="font-extrabold text-white tracking-widest uppercase text-xs">Ledger Updated</p>
+        <p className="font-extrabold text-[var(--text-color)] dark:text-white tracking-widest uppercase text-xs">Ledger Updated</p>
       </div>
 
       {/* Main Content */}

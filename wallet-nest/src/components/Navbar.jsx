@@ -1,5 +1,5 @@
 import { useTheme } from '../hooks/useTheme';
-import { Moon, Sun, Bell, Search, Wallet } from 'lucide-react';
+import { Moon, Sun, Search, Wallet } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Navbar() {
@@ -21,11 +21,11 @@ export default function Navbar() {
         
         {/* Desktop Search */}
         <div className="relative w-full max-w-sm hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-text)]" size={18} />
           <input 
             type="text" 
             placeholder="Search transactions..." 
-            className="w-full bg-gray-100 dark:bg-slate-800 border-none rounded-2xl py-2.5 pl-10 pr-4 focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition-all"
+            className="w-full bg-[var(--search-bg)] border border-[var(--border-color)] rounded-2xl py-2.5 pl-10 pr-4 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-[var(--text-color)] transition-all"
           />
         </div>
       </div>

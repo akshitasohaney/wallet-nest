@@ -8,13 +8,13 @@ const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#14b8a6'
 function ReportsChartTooltip({ active, payload, label, prefix = 'Rs ' }) {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-900/95 backdrop-blur border border-white/10 p-5 rounded-2xl shadow-2xl">
-        {label && <p className="text-gray-400 font-black tracking-widest text-xs uppercase mb-3">{label}</p>}
+      <div className="bg-[var(--card-bg)] backdrop-blur border border-[var(--border-color)] p-5 rounded-2xl shadow-2xl">
+        {label && <p className="text-[var(--muted-text)] font-black tracking-widest text-xs uppercase mb-3">{label}</p>}
         <div className="flex flex-col gap-2">
           {payload.map((entry, index) => (
             <div key={index} className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: entry.color || entry.fill || entry.payload?.fill }} />
-              <p className="text-white font-black text-xl tracking-tight">
+              <p className="text-[var(--text-color)] font-black text-xl tracking-tight">
                 {prefix}{entry.value.toLocaleString()}
               </p>
             </div>
@@ -27,35 +27,77 @@ function ReportsChartTooltip({ active, payload, label, prefix = 'Rs ' }) {
 }
 
 export default function Reports() {
-  const { metrics, transactions } = useFinance();
-  
-  // 1. Core Analytics
-  const categoryData = useMemo(() => Object.entries(metrics.categoryTotals)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value), [metrics.categoryTotals]);
+  const { transactions } = useFinance();
+
+  const expenseTransactions = useMemo(
+    () => transactions.filter((t) => t.amount < 0 && t.date),
+    [transactions],
+  );
+
+  const monthExpenseTransactions = useMemo(() => {
+    const now = new Date();
+    return expenseTransactions.filter((t) => {
+      const d = new Date(t.date);
+      return (
+        !Number.isNaN(d.getTime())
+        && d.getFullYear() === now.getFullYear()
+        && d.getMonth() === now.getMonth()
+      );
+    });
+  }, [expenseTransactions]);
+
+  // 1. Core Analytics (current month)
+  const categoryData = useMemo(
+    () => Object.values(
+      monthExpenseTransactions.reduce((acc, tx) => {
+        const key = tx.category || 'Other';
+        const amount = Math.abs(Number(tx.amount) || 0);
+        if (!acc[key]) {
+          acc[key] = { name: key, value: 0 };
+        }
+        acc[key].value += amount;
+        return acc;
+      }, {}),
+    ).sort((a, b) => b.value - a.value),
+    [monthExpenseTransactions],
+  );
 
   const topCategory = categoryData.length > 0 ? categoryData[0] : { name: 'N/A', value: 0 };
-  const daysInMonth = new Date().getDate(); 
-  const averageDailySpend = Math.round(metrics.expenses / Math.max(1, daysInMonth));
-  const totalSpend = metrics.expenses;
+  const daysElapsed = new Date().getDate();
+  const totalSpend = monthExpenseTransactions.reduce((sum, tx) => sum + Math.abs(Number(tx.amount) || 0), 0);
+  const averageDailySpend = Math.round(totalSpend / Math.max(1, daysElapsed));
 
-  // 2. Weekly Trend Engine
-  const weeklyData = useMemo(() => {
-    const data = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const strDate = d.toISOString().split('T')[0];
-      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-      
-      const daySpend = transactions
-        .filter(t => t.amount < 0 && t.date === strDate)
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-        
-      data.push({ day: dayName, spend: daySpend });
+  // 2. Monthly Trend Engine (last 6 months)
+  const monthlyData = useMemo(() => {
+    const now = new Date();
+    const labels = [];
+    const monthlyMap = {};
+
+    for (let i = 5; i >= 0; i -= 1) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      labels.push(key);
+      monthlyMap[key] = 0;
     }
-    return data;
-  }, [transactions]);
+
+    expenseTransactions.forEach((tx) => {
+      const d = new Date(tx.date);
+      if (Number.isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (monthlyMap[key] !== undefined) {
+        monthlyMap[key] += Math.abs(Number(tx.amount) || 0);
+      }
+    });
+
+    return labels.map((key) => {
+      const [year, month] = key.split('-').map(Number);
+      const labelDate = new Date(year, month - 1, 1);
+      return {
+        month: labelDate.toLocaleDateString('en-US', { month: 'short' }),
+        spend: monthlyMap[key],
+      };
+    });
+  }, [expenseTransactions]);
 
   return (
     <div className="max-w-7xl mx-auto animation-fade-in pb-12">
@@ -103,14 +145,14 @@ export default function Reports() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         
-        {/* Weekly Area Chart */}
+        {/* Monthly Area Chart */}
         <div className="card-premium p-8 col-span-1 xl:col-span-2 flex flex-col h-[450px]">
           <h3 className="font-extrabold text-xl text-[var(--text-color)] tracking-tight mb-8 flex items-center gap-3">
-             Weekly Spending Trend
+             Monthly Spending Trend
           </h3>
           <div className="flex-1 w-full relative z-10">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
@@ -118,7 +160,7 @@ export default function Reports() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} dy={15} />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} dy={15} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} />
                 <Tooltip content={ReportsChartTooltip} cursor={{ strokeDasharray: '3 3', stroke: 'rgba(255,255,255,0.1)' }} />
                 <Area type="monotone" dataKey="spend" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorSpend)" animationDuration={1500} />

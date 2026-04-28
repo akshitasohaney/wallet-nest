@@ -9,13 +9,15 @@ export default function Goals() {
   const [title, setTitle] = useState('');
   const [target, setTarget] = useState('');
 
-  const submitGoal = (event) => {
+  const submitGoal = async (event) => {
     event.preventDefault();
     if (!title.trim() || !target) return;
-    addGoal({ title, target });
-    setTitle('');
-    setTarget('');
-    setShowForm(false);
+    const inserted = await addGoal({ title, target });
+    if (inserted) {
+      setTitle('');
+      setTarget('');
+      setShowForm(false);
+    }
   };
 
   return (

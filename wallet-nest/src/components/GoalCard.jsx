@@ -98,11 +98,13 @@ export default function GoalCard({ title, current, target, color = 'emerald', on
                     type="number" 
                     value={contributeAmount}
                     onChange={(e) => setContributeAmount(e.target.value)}
-                    onKeyDown={(e) => {
+                    onKeyDown={async (e) => {
                       if (e.key === 'Enter' && contributeAmount) {
-                        onAddContribution(contributeAmount);
-                        setIsAdding(false);
-                        setContributeAmount('');
+                        const updated = await onAddContribution(contributeAmount);
+                        if (updated) {
+                          setIsAdding(false);
+                          setContributeAmount('');
+                        }
                       }
                     }}
                     placeholder="Amount"
@@ -111,9 +113,14 @@ export default function GoalCard({ title, current, target, color = 'emerald', on
                   />
                 </div>
                 <button 
-                  onClick={() => {
+                  onClick={async () => {
                     if (contributeAmount) {
-                      onAddContribution(contributeAmount);
+                      const updated = await onAddContribution(contributeAmount);
+                      if (updated) {
+                        setIsAdding(false);
+                        setContributeAmount('');
+                      }
+                      return;
                     }
                     setIsAdding(false);
                     setContributeAmount('');
