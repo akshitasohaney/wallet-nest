@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "start": "node server/finance-chat-proxy.mjs",
     "finance-chat-proxy": "node server/finance-chat-proxy.mjs",
     "server": "node server/finance-chat-proxy.mjs"
   },

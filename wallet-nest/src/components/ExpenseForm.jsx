@@ -31,17 +31,20 @@ export default function ExpenseForm({ onSubmit }) {
       ? activeCategory
       : (categories[0]?.name ?? '');
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!form.amount) return;
     
-    onSubmit({
+    const inserted = await onSubmit({
       ...form,
       category: effectiveCategory,
       mood: activeMood,
       id: Date.now()
     });
-    setForm((prev) => ({ ...prev, amount: '', note: '' }));
+
+    if (inserted) {
+      setForm((prev) => ({ ...prev, amount: '', note: '' }));
+    }
   };
 
   const handleAddCategory = (e) => {

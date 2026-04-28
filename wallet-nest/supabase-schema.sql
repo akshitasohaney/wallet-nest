@@ -44,7 +44,7 @@ create policy "Users manage own goals"
 create table if not exists public.user_settings (
   id              uuid primary key default gen_random_uuid(),
   user_id         uuid not null unique references auth.users(id) on delete cascade,
-  monthly_budget  numeric not null default 8000,
+  monthly_budget  numeric not null default 0,
   categories      jsonb not null default '[]'::jsonb
 );
 
