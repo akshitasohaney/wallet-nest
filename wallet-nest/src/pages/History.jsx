@@ -6,7 +6,7 @@ export default function History() {
   const { transactions } = useFinance();
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('All');
-  const [dateRange, setDateRange] = useState('All Time');
+  const [dateRange, setDateRange] = useState('All Range');
   
   // Extract unique categories
   const categories = ['All', ...new Set(transactions.map(t => t.category))];
@@ -17,7 +17,7 @@ export default function History() {
       const matchesCat = filterCat === 'All' || tx.category === filterCat;
       
       let matchesDate = true;
-      if (dateRange !== 'All Time') {
+      if (dateRange !== 'All Range') {
         const txDate = new Date(tx.date);
         const now = new Date();
         const diffTime = Math.abs(now - txDate);
@@ -47,15 +47,15 @@ export default function History() {
 
       <div className="card-premium flex flex-col flex-1 min-h-0 overflow-hidden border border-[var(--border-color)] shadow-xl">
         {/* Filters and Controls */}
-        <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex flex-wrap items-center gap-4 bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-md z-20">
+        <div className="p-5 border-b border-[var(--border-color)] flex flex-wrap items-center gap-4 bg-[var(--surface-soft)] backdrop-blur-md z-20">
           <div className="relative flex-1 min-w-[250px]">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} strokeWidth={3} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted-text)]" size={18} strokeWidth={3} />
             <input 
               type="text" 
               placeholder="Search ledger..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-white dark:bg-slate-900 border-2 border-transparent dark:border-slate-700/50 rounded-xl py-2.5 pl-12 pr-4 focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-sm font-bold tracking-tight text-[var(--text-color)] transition-all shadow-sm"
+              className="w-full bg-[var(--search-bg)] border-2 border-[var(--border-color)] rounded-xl py-2.5 pl-12 pr-4 focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-sm font-bold tracking-tight text-[var(--text-color)] transition-all shadow-sm"
             />
           </div>
           
@@ -63,7 +63,7 @@ export default function History() {
             <select 
               value={filterCat}
               onChange={(e) => setFilterCat(e.target.value)}
-              className="bg-white dark:bg-slate-900 border-2 border-transparent dark:border-slate-700/50 rounded-xl py-2.5 px-5 focus:ring-4 focus:ring-orange-500/20 outline-none text-sm font-bold text-[var(--text-color)] transition-all cursor-pointer shadow-sm"
+              className="bg-[var(--search-bg)] border-2 border-[var(--border-color)] rounded-xl py-2.5 px-5 focus:ring-4 focus:ring-orange-500/20 outline-none text-sm font-bold text-[var(--text-color)] transition-all cursor-pointer shadow-sm"
             >
               {categories.map(cat => (
                 <option key={cat} value={cat}>{cat} Filter</option>
@@ -73,7 +73,7 @@ export default function History() {
             <select 
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="bg-white dark:bg-slate-900 border-2 border-transparent dark:border-slate-700/50 rounded-xl py-2.5 px-5 focus:ring-4 focus:ring-orange-500/20 outline-none text-sm font-bold text-[var(--text-color)] transition-all cursor-pointer shadow-sm"
+              className="bg-[var(--search-bg)] border-2 border-[var(--border-color)] rounded-xl py-2.5 px-5 focus:ring-4 focus:ring-orange-500/20 outline-none text-sm font-bold text-[var(--text-color)] transition-all cursor-pointer shadow-sm"
             >
               <option>All Range</option>
               <option>Last 7 Days</option>
@@ -82,10 +82,10 @@ export default function History() {
           </div>
         </div>
 
-        <div className="overflow-x-auto flex-1 relative bg-white dark:bg-[var(--card-bg)]">
+        <div className="overflow-x-auto flex-1 relative bg-[var(--card-bg)]">
           <table className="w-full text-left border-collapse min-w-[700px]">
-            <thead className="sticky top-0 bg-gray-50/95 dark:bg-slate-900/95 backdrop-blur-md shadow-sm z-10 border-b border-gray-100 dark:border-slate-800">
-              <tr className="text-gray-400 dark:text-gray-500 text-xs font-black tracking-widest uppercase">
+            <thead className="sticky top-0 bg-[var(--surface-soft)] backdrop-blur-md shadow-sm z-10 border-b border-[var(--border-color)]">
+              <tr className="text-[var(--muted-text)] text-xs font-black tracking-widest uppercase">
                 <th className="px-8 py-5">Transaction Node</th>
                 <th className="px-6 py-5">Classification</th>
                 <th className="px-6 py-5">Timestamp</th>

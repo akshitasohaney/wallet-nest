@@ -164,7 +164,7 @@ export default function ChatMentorBox() {
               <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
                 <Bot size={14} strokeWidth={2.5} />
               </div>
-              <div className="bg-gray-50 dark:bg-slate-800/80 p-3.5 rounded-2xl rounded-tl-sm text-sm text-[var(--text-color)] shadow-sm border border-gray-100 dark:border-slate-700/50 leading-relaxed whitespace-pre-wrap">
+              <div className="bg-[var(--chat-assistant-bg)] p-3.5 rounded-2xl rounded-tl-sm text-sm text-[var(--text-color)] shadow-sm border border-[var(--border-color)] leading-relaxed whitespace-pre-wrap">
                 {msg.content}
               </div>
             </div>
@@ -183,9 +183,9 @@ export default function ChatMentorBox() {
             <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
               <Bot size={14} strokeWidth={2.5} />
             </div>
-            <div className="bg-gray-50 dark:bg-slate-800/80 px-5 py-3.5 rounded-2xl rounded-tl-sm border border-gray-100 dark:border-slate-700/50 shadow-sm flex items-center gap-2">
+            <div className="bg-[var(--chat-assistant-bg)] px-5 py-3.5 rounded-2xl rounded-tl-sm border border-[var(--border-color)] shadow-sm flex items-center gap-2">
               <Loader2 size={16} className="animate-spin text-blue-500" />
-              <span className="text-xs font-bold tracking-widest uppercase text-gray-400">Generating response</span>
+              <span className="text-xs font-bold tracking-widest uppercase text-[var(--muted-text)]">Generating response</span>
             </div>
           </div>
         )}
@@ -212,7 +212,7 @@ export default function ChatMentorBox() {
       {/* Input Area */}
       <form
         onSubmit={handleSubmit}
-        className="p-4 border-t border-gray-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md shrink-0"
+        className="p-4 border-t border-[var(--border-color)] bg-[var(--card-bg)] backdrop-blur-md shrink-0"
       >
         <div className="relative flex items-center">
           <input
@@ -222,7 +222,7 @@ export default function ChatMentorBox() {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about your finances…"
             disabled={loading}
-            className="w-full bg-gray-100 dark:bg-slate-800 border-2 border-transparent focus:border-blue-500 rounded-2xl py-3 pl-4 pr-14 outline-none text-sm font-medium text-[var(--text-color)] transition-all focus:ring-4 focus:ring-blue-500/10 disabled:opacity-50"
+            className="w-full bg-[var(--input-bg)] border-2 border-[var(--border-color)] focus:border-blue-500 rounded-2xl py-3 pl-4 pr-14 outline-none text-sm font-medium text-[var(--text-color)] transition-all focus:ring-4 focus:ring-blue-500/10 disabled:opacity-50"
           />
           <button
             type="submit"

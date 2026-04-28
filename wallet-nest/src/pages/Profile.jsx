@@ -36,7 +36,7 @@ export default function Profile() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-[var(--text-color)] mb-2 tracking-tight">My Profile</h2>
-        <p className="text-gray-500">View your account details and financial snapshot.</p>
+        <p className="text-[var(--muted-text)]">View your account details and financial snapshot.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -62,14 +62,14 @@ export default function Profile() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Username"
-              className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl py-2.5 px-3 outline-none"
+              className="w-full bg-[var(--search-bg)] border border-[var(--border-color)] rounded-xl py-2.5 px-3 outline-none text-[var(--text-color)]"
             />
             <input
               type="url"
               value={avatar}
               onChange={(event) => setAvatar(event.target.value)}
               placeholder="Avatar URL (optional)"
-              className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl py-2.5 px-3 outline-none"
+              className="w-full bg-[var(--search-bg)] border border-[var(--border-color)] rounded-xl py-2.5 px-3 outline-none text-[var(--text-color)]"
             />
             <button className="btn-primary w-full" disabled={authLoading}>
               {authLoading ? 'Saving...' : 'Save Profile'}
@@ -102,7 +102,7 @@ export default function Profile() {
           <Sparkles size={18} className="text-emerald-500" />
           Suggested Avatars
         </h3>
-        <p className="text-sm text-gray-500 mb-4">Pick any suggested avatar for your profile.</p>
+        <p className="text-sm text-[var(--muted-text)] mb-4">Pick any suggested avatar for your profile.</p>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           {suggestions.map((option) => (
             <button

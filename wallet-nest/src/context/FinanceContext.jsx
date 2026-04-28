@@ -13,16 +13,87 @@ const defaultCategories = [
 ];
 
 const isExpense = (tx) => tx.amount < 0;
+const isInCurrentMonth = (dateValue) => {
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) return false;
+  const now = new Date();
+  return (
+    parsed.getFullYear() === now.getFullYear()
+    && parsed.getMonth() === now.getMonth()
+  );
+};
 
 export function FinanceProvider({ children }) {
   const { user } = useAuth();
   const userId = user?.id;
 
-  const [monthlyBudget, setMonthlyBudgetLocal] = useState(8000);
+  const [monthlyBudget, setMonthlyBudgetLocal] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [goals, setGoals] = useState([]);
   const [categories, setCategoriesLocal] = useState(defaultCategories);
   const [dataLoading, setDataLoading] = useState(true);
+
+  const refreshData = useCallback(async () => {
+    if (!userId) return false;
+
+    setDataLoading(true);
+
+    const [expRes, goalRes, settingsRes] = await Promise.all([
+      supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('goals')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .single(),
+    ]);
+
+    setTransactions(
+      (expRes.data || []).map((r) => ({
+        id: r.id,
+        title: r.title,
+        amount: Number(r.amount),
+        category: r.category,
+        date: r.date,
+        mood: r.mood,
+        note: r.note,
+      })),
+    );
+
+    setGoals(
+      (goalRes.data || []).map((r) => ({
+        id: r.id,
+        title: r.title,
+        target: Number(r.target),
+        saved: Number(r.saved),
+      })),
+    );
+
+    if (settingsRes.data) {
+      setMonthlyBudgetLocal(Number(settingsRes.data.monthly_budget));
+      const storedCats = settingsRes.data.categories;
+      if (Array.isArray(storedCats) && storedCats.length > 0) {
+        setCategoriesLocal(storedCats);
+      }
+    } else {
+      await supabase.from('user_settings').insert({
+        user_id: userId,
+        monthly_budget: 0,
+        categories: defaultCategories,
+      });
+    }
+
+    setDataLoading(false);
+    return true;
+  }, [userId]);
 
   // ------------------------------------------------------------------
   // Fetch all user data from Supabase on login / mount
@@ -32,7 +103,7 @@ export function FinanceProvider({ children }) {
       // User logged out — reset to defaults
       setTransactions([]);
       setGoals([]);
-      setMonthlyBudgetLocal(8000);
+      setMonthlyBudgetLocal(0);
       setCategoriesLocal(defaultCategories);
       setDataLoading(false);
       return;
@@ -41,84 +112,33 @@ export function FinanceProvider({ children }) {
     let cancelled = false;
 
     async function fetchAll() {
-      setDataLoading(true);
-
-      const [expRes, goalRes, settingsRes] = await Promise.all([
-        supabase
-          .from('expenses')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('goals')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('user_settings')
-          .select('*')
-          .eq('user_id', userId)
-          .single(),
-      ]);
-
       if (cancelled) return;
-
-      // Map Supabase rows into the shape the UI expects
-      setTransactions(
-        (expRes.data || []).map((r) => ({
-          id: r.id,
-          title: r.title,
-          amount: Number(r.amount),
-          category: r.category,
-          date: r.date,
-          mood: r.mood,
-          note: r.note,
-        })),
-      );
-
-      setGoals(
-        (goalRes.data || []).map((r) => ({
-          id: r.id,
-          title: r.title,
-          target: Number(r.target),
-          saved: Number(r.saved),
-        })),
-      );
-
-      if (settingsRes.data) {
-        setMonthlyBudgetLocal(Number(settingsRes.data.monthly_budget));
-        const storedCats = settingsRes.data.categories;
-        if (Array.isArray(storedCats) && storedCats.length > 0) {
-          setCategoriesLocal(storedCats);
-        }
-      } else {
-        // First login — seed default settings row
-        await supabase.from('user_settings').insert({
-          user_id: userId,
-          monthly_budget: 8000,
-          categories: defaultCategories,
-        });
-      }
-
-      setDataLoading(false);
+      await refreshData();
     }
 
     fetchAll();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, refreshData]);
 
   // ------------------------------------------------------------------
   // Metrics (derived — zero changes from original)
   // ------------------------------------------------------------------
   const metrics = useMemo(() => {
-    const income = transactions.filter((tx) => tx.amount > 0).reduce((sum, tx) => sum + tx.amount, 0);
-    const expenses = transactions.filter(isExpense).reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-    const remaining = monthlyBudget - expenses;
-    const spendingRate = expenses / Math.max(1, new Date().getDate());
-    const predictedMonthEnd = monthlyBudget - Math.round(spendingRate * 30);
+    const monthTransactions = transactions.filter((tx) => isInCurrentMonth(tx.date));
+    const monthExpenses = monthTransactions.filter(isExpense);
 
-    const categoryTotals = transactions
-      .filter(isExpense)
+    const income = monthTransactions
+      .filter((tx) => tx.amount > 0)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    const expenses = monthExpenses.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+    const remaining = monthlyBudget - expenses;
+    const today = new Date();
+    const dayOfMonth = today.getDate();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const spendingRate = expenses / Math.max(1, dayOfMonth);
+    const predictedMonthEnd = monthlyBudget - Math.round(spendingRate * daysInMonth);
+
+    const categoryTotals = monthExpenses
       .reduce((acc, tx) => {
         acc[tx.category] = (acc[tx.category] || 0) + Math.abs(tx.amount);
         return acc;
@@ -140,6 +160,8 @@ export function FinanceProvider({ children }) {
   // ------------------------------------------------------------------
   const addExpense = useCallback(
     async ({ title, note, amount, category, date, mood }) => {
+      if (!userId) return false;
+
       const row = {
         user_id: userId,
         title: title || note || `${category} Expense`,
@@ -158,27 +180,21 @@ export function FinanceProvider({ children }) {
 
       if (error) {
         console.error('addExpense error:', error.message);
-        return;
+        return false;
       }
 
-      setTransactions((prev) => [
-        {
-          id: data.id,
-          title: data.title,
-          amount: Number(data.amount),
-          category: data.category,
-          date: data.date,
-          mood: data.mood,
-          note: data.note,
-        },
-        ...prev,
-      ]);
+      if (!data) return false;
+
+      await refreshData();
+      return true;
     },
-    [userId],
+    [userId, refreshData],
   );
 
   const addGoal = useCallback(
     async ({ title, target }) => {
+      if (!userId) return false;
+
       const { data, error } = await supabase
         .from('goals')
         .insert({ user_id: userId, title: title.trim(), target: Number(target), saved: 0 })
@@ -187,29 +203,32 @@ export function FinanceProvider({ children }) {
 
       if (error) {
         console.error('addGoal error:', error.message);
-        return;
+        return false;
       }
 
       setGoals((prev) => [
         ...prev,
         { id: data.id, title: data.title, target: Number(data.target), saved: Number(data.saved) },
       ]);
+      return true;
     },
     [userId],
   );
 
   const removeGoal = useCallback(async (id) => {
+    if (!id) return false;
     const { error } = await supabase.from('goals').delete().eq('id', id);
     if (error) {
       console.error('removeGoal error:', error.message);
-      return;
+      return false;
     }
     setGoals((prev) => prev.filter((g) => g.id !== id));
+    return true;
   }, []);
 
   const addContribution = useCallback(async (id, amount) => {
     const goal = goals.find((g) => g.id === id);
-    if (!goal) return;
+    if (!goal) return false;
 
     const newSaved = goal.saved + Number(amount);
     const { error } = await supabase
@@ -219,12 +238,13 @@ export function FinanceProvider({ children }) {
 
     if (error) {
       console.error('addContribution error:', error.message);
-      return;
+      return false;
     }
 
     setGoals((prev) =>
       prev.map((g) => (g.id === id ? { ...g, saved: newSaved } : g)),
     );
+    return true;
   }, [goals]);
 
   const setBudget = useCallback(
@@ -293,6 +313,7 @@ export function FinanceProvider({ children }) {
     addContribution,
     addCategory,
     removeCategory,
+    refreshData,
     dataLoading,
   };
 

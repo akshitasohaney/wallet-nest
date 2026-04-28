@@ -167,7 +167,7 @@ export default function MentorChat() {
               <h1 className="text-2xl md:text-3xl font-black tracking-tight text-[var(--text-color)]">
                 Nest Mentor
               </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-md leading-relaxed">
+              <p className="text-sm text-[var(--muted-text)] mt-1 max-w-md leading-relaxed">
                 Personalized guidance from your spending patterns
                 {aiLive
                   ? mentorProxyUrl
@@ -182,7 +182,7 @@ export default function MentorChat() {
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               {mentorProxyUrl ? 'Proxy + Gemini' : geminiBrowserKey ? 'Gemini (browser)' : 'Local mentor'}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-color)] bg-white/50 dark:bg-slate-900/50 px-3 py-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-1.5 text-[11px] font-bold text-[var(--muted-text)] uppercase tracking-wider">
               Rs {metrics.expenses.toLocaleString()} spent
             </span>
           </div>
@@ -206,7 +206,7 @@ export default function MentorChat() {
               </span>
               <span className="flex flex-col min-w-[10rem] max-w-[14rem]">
                 <span className="text-xs font-bold text-[var(--text-color)] leading-tight">{p.label}</span>
-                <span className="text-[10px] text-gray-500 line-clamp-2 mt-0.5">{p.text}</span>
+                <span className="text-[10px] text-[var(--muted-text)] line-clamp-2 mt-0.5">{p.text}</span>
               </span>
               <ChevronRight size={16} className="text-gray-300 group-hover:text-emerald-500 shrink-0" />
             </button>
@@ -224,7 +224,7 @@ export default function MentorChat() {
             <div className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center overflow-hidden border-2 border-indigo-500/30 bg-indigo-100 dark:bg-indigo-950/50">
               <Bot className="text-indigo-600 dark:text-indigo-300" size={20} />
             </div>
-            <div className="rounded-2xl rounded-tl-md px-4 py-3 text-sm leading-relaxed shadow-sm bg-white/90 dark:bg-slate-800/90 text-[var(--text-color)] border border-gray-100 dark:border-slate-700/80">
+            <div className="rounded-2xl rounded-tl-md px-4 py-3 text-sm leading-relaxed shadow-sm bg-[var(--chat-assistant-bg)] text-[var(--text-color)] border border-[var(--border-color)]">
               <div className="whitespace-pre-wrap break-words">{formatMessageBody(welcomeText, false)}</div>
             </div>
           </div>
@@ -251,7 +251,7 @@ export default function MentorChat() {
                 className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
                   m.role === 'user'
                     ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-tr-md shadow-emerald-500/25'
-                    : 'bg-white/90 dark:bg-slate-800/90 text-[var(--text-color)] border border-gray-100 dark:border-slate-700/80 rounded-tl-md'
+                    : 'bg-[var(--chat-assistant-bg)] text-[var(--text-color)] border border-[var(--border-color)] rounded-tl-md'
                 }`}
               >
                 <div className="whitespace-pre-wrap break-words">
@@ -266,9 +266,9 @@ export default function MentorChat() {
               <div className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center border-2 border-indigo-500/30 bg-indigo-100 dark:bg-indigo-950/50">
                 <Bot className="text-indigo-600 dark:text-indigo-300" size={20} />
               </div>
-              <div className="rounded-2xl rounded-tl-md px-4 py-3 bg-white/90 dark:bg-slate-800/90 border border-gray-100 dark:border-slate-700/80 flex items-center gap-2">
+              <div className="rounded-2xl rounded-tl-md px-4 py-3 bg-[var(--chat-assistant-bg)] border border-[var(--border-color)] flex items-center gap-2">
                 <Loader2 className="animate-spin text-emerald-500" size={18} />
-                <span className="text-sm text-gray-500">Mentor is thinking…</span>
+                <span className="text-sm text-[var(--muted-text)]">Mentor is thinking…</span>
               </div>
             </div>
           )}
@@ -276,7 +276,7 @@ export default function MentorChat() {
 
         <form
           onSubmit={onSubmit}
-          className="p-4 md:p-5 border-t border-[var(--border-color)] bg-white/70 dark:bg-slate-900/70 backdrop-blur-md"
+          className="p-4 md:p-5 border-t border-[var(--border-color)] bg-[var(--card-bg)] backdrop-blur-md"
         >
           <div className="flex gap-3 items-end">
             <div className="flex-1 relative">
@@ -293,9 +293,9 @@ export default function MentorChat() {
                 }}
                 placeholder="Ask about budgeting, goals, habits, or this month's spend…"
                 disabled={sending}
-                className="w-full resize-none min-h-[48px] max-h-32 rounded-2xl border-2 border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/80 py-3.5 pl-4 pr-4 text-sm text-[var(--text-color)] placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all disabled:opacity-60"
+                className="w-full resize-none min-h-[48px] max-h-32 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--input-bg)] py-3.5 pl-4 pr-4 text-sm text-[var(--text-color)] placeholder:text-[var(--muted-text)] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all disabled:opacity-60"
               />
-              <p className="text-[10px] text-gray-400 mt-1.5 px-1">Enter to send · Shift+Enter for new line</p>
+              <p className="text-[10px] text-[var(--muted-text)] mt-1.5 px-1">Enter to send · Shift+Enter for new line</p>
             </div>
             <button
               type="submit"
@@ -309,7 +309,7 @@ export default function MentorChat() {
         </form>
       </div>
 
-      <p className="text-center text-[11px] text-gray-400 mt-4 px-4 leading-relaxed">
+      <p className="text-center text-[11px] text-[var(--muted-text)] mt-4 px-4 leading-relaxed">
         AI can be wrong. Use this as guidance, not financial advice.
       </p>
     </div>

@@ -59,7 +59,7 @@ export default function Dashboard() {
                   ? "You're burning through your budget rapidly. Lock in a daily cap immediately to survive the month!"
                   : "Excellent pacing this week. If you maintain this sweep rate, you'll comfortably hit your savings target."}
               </h2>
-              <Link to="/insights" className="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold tracking-tight rounded-xl text-sm transition-all hover:bg-emerald-500 dark:hover:bg-emerald-400 shadow-lg shadow-black/10 dark:shadow-black/20 hover:shadow-emerald-500/30">
+              <Link to="/insights" className="px-6 py-3 bg-white dark:bg-white text-[var(--text-color)] dark:text-slate-900 border border-[var(--border-color)] font-bold tracking-tight rounded-xl text-sm transition-all hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-400 shadow-lg shadow-black/10 dark:shadow-black/20 hover:shadow-emerald-500/30">
                 View full breakdown
               </Link>
             </div>
