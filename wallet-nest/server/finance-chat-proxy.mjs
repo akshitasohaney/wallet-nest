@@ -104,8 +104,8 @@ app.use((_req, res) => {
   res.status(404).json({ error: 'Not found. Use POST /api/finance-chat' });
 });
 
-app.listen(PORT, () => {
-  console.log(`WalletNest finance chat proxy -> http://localhost:${PORT}/api/finance-chat`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`WalletNest finance chat proxy -> http://0.0.0.0:${PORT}/api/finance-chat`);
   console.log(`CORS origin: ${CORS_ORIGIN}`);
 });
 
