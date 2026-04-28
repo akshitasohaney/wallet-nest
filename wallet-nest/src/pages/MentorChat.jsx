@@ -131,7 +131,11 @@ export default function MentorChat() {
   };
 
   const userAvatar = user?.avatar || 'https://api.dicebear.com/7.x/notionists/svg?seed=WalletNest&backgroundColor=10b981';
-  const geminiConfigured = Boolean(import.meta.env.VITE_GEMINI_API_KEY);
+  const mentorProxyUrl = Boolean(
+    (import.meta.env.VITE_FINANCE_CHAT_PROXY_URL || import.meta.env.VITE_MENTOR_PROXY_URL || '').trim(),
+  );
+  const geminiBrowserKey = Boolean(import.meta.env.VITE_GEMINI_API_KEY);
+  const aiLive = mentorProxyUrl || geminiBrowserKey;
 
   return (
     <div className="max-w-4xl mx-auto animation-fade-in pb-8 min-h-[calc(100dvh-8rem)] flex flex-col">
@@ -164,14 +168,19 @@ export default function MentorChat() {
                 Nest Mentor
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-md leading-relaxed">
-                Personalized guidance from your spending patterns{geminiConfigured ? ' — powered by Gemini.' : ' — add Gemini for live AI (see .env.example).'}
+                Personalized guidance from your spending patterns
+                {aiLive
+                  ? mentorProxyUrl
+                    ? ' — answers via your backend mentor proxy + Gemini.'
+                    : ' — Gemini from the browser (dev only; use a proxy in production).'
+                  : ' — set VITE_FINANCE_CHAT_PROXY_URL or see .env.example.'}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 sm:justify-end">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {geminiConfigured ? 'Gemini ready' : 'Local mentor'}
+              {mentorProxyUrl ? 'Proxy + Gemini' : geminiBrowserKey ? 'Gemini (browser)' : 'Local mentor'}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-color)] bg-white/50 dark:bg-slate-900/50 px-3 py-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Rs {metrics.expenses.toLocaleString()} spent
@@ -301,9 +310,10 @@ export default function MentorChat() {
       </div>
 
       <p className="text-center text-[11px] text-gray-400 mt-4 px-4 leading-relaxed">
-        AI can be wrong. Use this as guidance, not financial advice. For Gemini, set{' '}
-        <code className="text-gray-500 dark:text-gray-500">VITE_GEMINI_API_KEY</code> in{' '}
-        <code className="text-gray-500 dark:text-gray-500">.env</code> — use a backend proxy in production.
+        AI can be wrong. Use this as guidance, not financial advice. Prefer{' '}
+        <code className="text-gray-500 dark:text-gray-500">VITE_FINANCE_CHAT_PROXY_URL</code> and{' '}
+        <code className="text-gray-500 dark:text-gray-500">npm run finance-chat-proxy</code> with{' '}
+        <code className="text-gray-500 dark:text-gray-500">GEMINI_API_KEY</code> on the server.
       </p>
     </div>
   );

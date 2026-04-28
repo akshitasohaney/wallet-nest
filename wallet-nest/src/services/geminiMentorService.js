@@ -1,8 +1,11 @@
 /**
- * AI Finance Mentor — Gemini (placeholder / optional).
+ * AI Finance Mentor — Gemini via optional backend proxy (recommended) or browser key (dev only).
  *
- * Set VITE_GEMINI_API_KEY for live calls. For production, prefer a small
- * backend proxy so the key never ships to browsers.
+ * Production: set `VITE_FINANCE_CHAT_PROXY_URL` to your server route
+ * (e.g. `http://localhost:8787/api/finance-chat`).
+ * The server holds `GEMINI_API_KEY` — see `server/finance-chat-proxy.mjs`.
+ *
+ * Dev-only: `VITE_GEMINI_API_KEY` calls Google directly from the browser (key exposed; avoid in production).
  *
  * @see https://ai.google.dev/gemini-api/docs
  */
@@ -78,6 +81,33 @@ function fallbackReply(userText, contextBlock) {
  * @returns {Promise<string>}
  */
 export async function sendMentorMessage({ messages, financeContext }) {
+  const proxyUrl = (
+    import.meta.env.VITE_FINANCE_CHAT_PROXY_URL ||
+    import.meta.env.VITE_MENTOR_PROXY_URL ||
+    ''
+  ).trim().replace(/\/+$/, '');
+
+  if (proxyUrl) {
+    try {
+      const res = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, financeContext }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = typeof data?.error === 'string' ? data.error : data?.error?.message || res.statusText;
+        return `${fallbackReply(lastUserText(messages), financeContext)}\n\n_(Mentor proxy: ${err})_`;
+      }
+      if (typeof data?.text === 'string' && data.text.trim()) {
+        return data.text.trim();
+      }
+      return fallbackReply(lastUserText(messages), financeContext);
+    } catch {
+      // fall through to client key or local fallback
+    }
+  }
+
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   const model = import.meta.env.VITE_GEMINI_MODEL || DEFAULT_MODEL;
 
