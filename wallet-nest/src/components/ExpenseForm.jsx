@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, Coffee, ShoppingBag, Utensils, Book, Smile, Meh, Frown, Tag, X, Plane, Receipt, BookOpen, Box, Check } from 'lucide-react';
 import { useFinance } from '../hooks/useFinance';
 
@@ -25,11 +25,11 @@ export default function ExpenseForm({ onSubmit }) {
     date: new Date().toISOString().slice(0, 10),
   });
 
-  useEffect(() => {
-    if (categories.length > 0 && !activeCategory) {
-      setActiveCategory(categories[0].name);
-    }
-  }, [categories, activeCategory]);
+  const categoryNames = useMemo(() => new Set(categories.map((c) => c.name)), [categories]);
+  const effectiveCategory =
+    activeCategory && categoryNames.has(activeCategory)
+      ? activeCategory
+      : (categories[0]?.name ?? '');
 
   const submit = (event) => {
     event.preventDefault();
@@ -37,7 +37,7 @@ export default function ExpenseForm({ onSubmit }) {
     
     onSubmit({
       ...form,
-      category: activeCategory,
+      category: effectiveCategory,
       mood: activeMood,
       id: Date.now()
     });
@@ -104,7 +104,7 @@ export default function ExpenseForm({ onSubmit }) {
           <div className="flex space-x-3 overflow-x-auto pb-4 scrollbar-hide snap-x relative z-20">
             {categories.map((cat) => {
               const Icon = iconMap[cat.iconType] || Tag;
-              const isActive = activeCategory === cat.name;
+              const isActive = effectiveCategory === cat.name;
               return (
                 <div key={cat.id} className="relative group snap-start shrink-0">
                   {!cat.isDefault && (

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Target, TrendingUp, Trash2, PlusCircle, Check, Award, Flame, Sprout } from 'lucide-react';
+import { Target, Trash2, PlusCircle, Check, Award, Flame, Sprout } from 'lucide-react';
 
 export default function GoalCard({ title, current, target, color = 'emerald', onDelete, onAddContribution }) {
   const percent = Math.min(Math.round((current / target) * 100), 100);

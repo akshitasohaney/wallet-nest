@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Receipt, BrainCircuit, Target, PieChart, History, Wallet, UserCircle2 } from 'lucide-react';
+import { LayoutDashboard, Receipt, BrainCircuit, MessageCircle, Target, PieChart, History, Wallet, UserCircle2 } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
   { name: 'Add Expenses', path: '/expenses', icon: Receipt },
   { name: 'AI Insights', path: '/insights', icon: BrainCircuit },
+  { name: 'AI Mentor', path: '/mentor', icon: MessageCircle },
   { name: 'Goals', path: '/goals', icon: Target },
   { name: 'Reports', path: '/reports', icon: PieChart },
   { name: 'History', path: '/history', icon: History },

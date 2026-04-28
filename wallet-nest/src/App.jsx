@@ -10,6 +10,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import AddExpenses from './pages/AddExpenses';
 import AIInsights from './pages/AIInsights';
+import MentorChat from './pages/MentorChat';
 import Goals from './pages/Goals';
 import Reports from './pages/Reports';
 import History from './pages/History';
@@ -17,15 +18,18 @@ import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 
+import MobileNav from './components/MobileNav';
+
 function AppShell() {
   return (
     <div className="flex h-screen bg-[var(--bg-color)] text-[var(--text-color)] overflow-hidden transition-colors duration-300">
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
         <Navbar />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-10">
+        <main className="flex-1 overflow-y-auto pt-6 px-4 pb-28 md:p-8 lg:p-10">
           <Outlet />
         </main>
+        <MobileNav />
       </div>
     </div>
   );
@@ -46,6 +50,7 @@ function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/expenses" element={<AddExpenses />} />
                   <Route path="/insights" element={<AIInsights />} />
+                  <Route path="/mentor" element={<MentorChat />} />
                   <Route path="/goals" element={<Goals />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/history" element={<History />} />

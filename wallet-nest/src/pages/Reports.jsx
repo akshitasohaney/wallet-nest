@@ -1,9 +1,30 @@
 import { useMemo } from 'react';
-import { PieChart as PieChartIcon, TrendingDown, LayoutList, CalendarDays, Activity } from 'lucide-react';
+import { TrendingDown, LayoutList, CalendarDays, Activity } from 'lucide-react';
 import { useFinance } from '../hooks/useFinance';
 import { PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#14b8a6', '#f43f5e'];
+
+function ReportsChartTooltip({ active, payload, label, prefix = 'Rs ' }) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900/95 backdrop-blur border border-white/10 p-5 rounded-2xl shadow-2xl">
+        {label && <p className="text-gray-400 font-black tracking-widest text-xs uppercase mb-3">{label}</p>}
+        <div className="flex flex-col gap-2">
+          {payload.map((entry, index) => (
+            <div key={index} className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: entry.color || entry.fill || entry.payload?.fill }} />
+              <p className="text-white font-black text-xl tracking-tight">
+                {prefix}{entry.value.toLocaleString()}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function Reports() {
   const { metrics, transactions } = useFinance();
@@ -35,28 +56,6 @@ export default function Reports() {
     }
     return data;
   }, [transactions]);
-
-  // Premium Tooltip
-  const CustomTooltip = ({ active, payload, label, prefix = 'Rs ' }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-slate-900/95 backdrop-blur border border-white/10 p-5 rounded-2xl shadow-2xl">
-          {label && <p className="text-gray-400 font-black tracking-widest text-xs uppercase mb-3">{label}</p>}
-          <div className="flex flex-col gap-2">
-            {payload.map((entry, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: entry.color || entry.fill || entry.payload.fill }} />
-                <p className="text-white font-black text-xl tracking-tight">
-                  {prefix}{entry.value.toLocaleString()}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="max-w-7xl mx-auto animation-fade-in pb-12">
@@ -121,7 +120,7 @@ export default function Reports() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} dy={15} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} />
-                <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3', stroke: 'rgba(255,255,255,0.1)' }} />
+                <Tooltip content={ReportsChartTooltip} cursor={{ strokeDasharray: '3 3', stroke: 'rgba(255,255,255,0.1)' }} />
                 <Area type="monotone" dataKey="spend" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorSpend)" animationDuration={1500} />
               </AreaChart>
             </ResponsiveContainer>
@@ -150,7 +149,7 @@ export default function Reports() {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={ReportsChartTooltip} />
                   <Legend verticalAlign="bottom" height={40} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', paddingTop: '20px', color: 'var(--text-color)' }} />
                 </PieChart>
               </ResponsiveContainer>
@@ -167,11 +166,10 @@ export default function Reports() {
             {categoryData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={categoryData.slice(0, 6)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barGap={6}>
-                  <CustomTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} />
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.5} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} dy={15} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} />
-                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} content={<CustomTooltip />} />
+                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} content={ReportsChartTooltip} />
                   <Bar dataKey="value" name="Total Spent" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={28} animationDuration={1500}>
                     {categoryData.slice(0,6).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
