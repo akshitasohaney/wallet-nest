@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { FinanceContext } from './FinanceCtx';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 
 const defaultCategories = [
@@ -23,6 +23,24 @@ const isInCurrentMonth = (dateValue) => {
   );
 };
 
+const formatSupabaseActionError = (error, entityName) => {
+  const message = error?.message || 'Unknown Supabase error.';
+  const code = error?.code || '';
+  if (!supabaseConfigured) {
+    return 'Supabase environment variables are missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.';
+  }
+  if (code === '42501') {
+    return `Permission denied while writing ${entityName}. Check RLS policies for auth.uid() = user_id.`;
+  }
+  if (code === '42P01') {
+    return `${entityName} table not found. Verify Supabase schema has this table.`;
+  }
+  if (code === '23502') {
+    return `Schema mismatch while saving ${entityName}. Verify required columns and payload fields.`;
+  }
+  return message;
+};
+
 export function FinanceProvider({ children }) {
   const { user } = useAuth();
   const userId = user?.id;
@@ -32,9 +50,14 @@ export function FinanceProvider({ children }) {
   const [goals, setGoals] = useState([]);
   const [categories, setCategoriesLocal] = useState(defaultCategories);
   const [dataLoading, setDataLoading] = useState(true);
+  const [actionError, setActionError] = useState('');
 
   const refreshData = useCallback(async () => {
     if (!userId) return false;
+    if (!supabaseConfigured) {
+      setActionError('Supabase environment variables are missing. Update your .env and restart the app.');
+      return false;
+    }
 
     setDataLoading(true);
 
@@ -63,6 +86,12 @@ export function FinanceProvider({ children }) {
         goals: goalRes.error?.message,
         settings: settingsRes.error?.message,
       });
+      setActionError(
+        formatSupabaseActionError(
+          expRes.error || goalRes.error || settingsRes.error,
+          expRes.error ? 'expenses' : goalRes.error ? 'goals' : 'user settings',
+        ),
+      );
       setDataLoading(false);
       return false;
     }
@@ -103,6 +132,7 @@ export function FinanceProvider({ children }) {
     }
 
     setDataLoading(false);
+    setActionError('');
     return true;
   }, [userId]);
 
@@ -172,8 +202,13 @@ export function FinanceProvider({ children }) {
   const addExpense = useCallback(
     async ({ title, note, amount, category, date, mood }) => {
       if (!userId) return false;
+      if (!supabaseConfigured) {
+        setActionError('Supabase environment variables are missing. Update your .env and restart the app.');
+        return false;
+      }
       const normalizedAmount = Number(amount);
       if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return false;
+      setActionError('');
 
       const row = {
         user_id: userId,
@@ -191,6 +226,7 @@ export function FinanceProvider({ children }) {
 
       if (error) {
         console.error('addExpense error:', error.message);
+        setActionError(formatSupabaseActionError(error, 'expenses'));
         return false;
       }
 
@@ -203,32 +239,42 @@ export function FinanceProvider({ children }) {
   const addGoal = useCallback(
     async ({ title, target }) => {
       if (!userId) return false;
+      if (!supabaseConfigured) {
+        setActionError('Supabase environment variables are missing. Update your .env and restart the app.');
+        return false;
+      }
+      const trimmedTitle = title?.trim();
+      const normalizedTarget = Number(target);
+      if (!trimmedTitle || !Number.isFinite(normalizedTarget) || normalizedTarget <= 0) return false;
+      setActionError('');
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('goals')
-        .insert({ user_id: userId, title: title.trim(), target: Number(target), saved: 0 })
-        .select()
-        .single();
+        .insert({ user_id: userId, title: trimmedTitle, target: normalizedTarget, saved: 0 });
 
       if (error) {
         console.error('addGoal error:', error.message);
+        setActionError(formatSupabaseActionError(error, 'goals'));
         return false;
       }
 
-      setGoals((prev) => [
-        ...prev,
-        { id: data.id, title: data.title, target: Number(data.target), saved: Number(data.saved) },
-      ]);
+      await refreshData();
       return true;
     },
-    [userId],
+    [userId, refreshData],
   );
 
   const removeGoal = useCallback(async (id) => {
     if (!id) return false;
+    if (!supabaseConfigured) {
+      setActionError('Supabase environment variables are missing. Update your .env and restart the app.');
+      return false;
+    }
+    setActionError('');
     const { error } = await supabase.from('goals').delete().eq('id', id);
     if (error) {
       console.error('removeGoal error:', error.message);
+      setActionError(formatSupabaseActionError(error, 'goals'));
       return false;
     }
     setGoals((prev) => prev.filter((g) => g.id !== id));
@@ -238,8 +284,15 @@ export function FinanceProvider({ children }) {
   const addContribution = useCallback(async (id, amount) => {
     const goal = goals.find((g) => g.id === id);
     if (!goal) return false;
+    if (!supabaseConfigured) {
+      setActionError('Supabase environment variables are missing. Update your .env and restart the app.');
+      return false;
+    }
+    const normalizedAmount = Number(amount);
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return false;
+    setActionError('');
 
-    const newSaved = goal.saved + Number(amount);
+    const newSaved = goal.saved + normalizedAmount;
     const { error } = await supabase
       .from('goals')
       .update({ saved: newSaved })
@@ -247,6 +300,7 @@ export function FinanceProvider({ children }) {
 
     if (error) {
       console.error('addContribution error:', error.message);
+      setActionError(formatSupabaseActionError(error, 'goals'));
       return false;
     }
 
@@ -265,6 +319,7 @@ export function FinanceProvider({ children }) {
         .eq('user_id', userId);
 
       if (error) console.error('setBudget error:', error.message);
+      if (error) setActionError(error.message || 'Failed to update budget.');
     },
     [userId],
   );
@@ -316,6 +371,7 @@ export function FinanceProvider({ children }) {
     goals,
     categories,
     metrics,
+    actionError,
     addExpense,
     addGoal,
     removeGoal,

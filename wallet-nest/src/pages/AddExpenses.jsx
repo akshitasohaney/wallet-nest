@@ -6,11 +6,15 @@ import { PlusCircle, Info, Zap } from 'lucide-react';
 export default function AddExpenses() {
   const { transactions, addExpense, metrics } = useFinance();
   const [showToast, setShowToast] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (expense) => {
     const inserted = await addExpense(expense);
     if (inserted) {
+      setError('');
       setShowToast(true);
+    } else {
+      setError('Could not save expense. Please check your Supabase setup and try again.');
     }
     return inserted;
   };
@@ -49,6 +53,9 @@ export default function AddExpenses() {
         </div>
 
         <ExpenseForm onSubmit={handleSubmit} />
+        {error && (
+          <p className="text-sm font-bold text-red-500 mt-3">{error}</p>
+        )}
       </div>
 
       {/* Sidebar Info & Feed */}
