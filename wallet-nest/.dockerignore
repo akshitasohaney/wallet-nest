@@ -8,3 +8,13 @@ dist-ssr
 server/.env
 .git
 .vscode
+.git
+.gitignore
+.env.local
+.env
+Dockerfile
+docker-compose.yml
+dist/
+build/
+public/
+src/
