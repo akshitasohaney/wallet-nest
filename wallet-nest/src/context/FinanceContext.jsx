@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { FinanceContext } from './FinanceCtx';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 
 const defaultCategories = [
@@ -23,6 +23,39 @@ const isInCurrentMonth = (dateValue) => {
   );
 };
 
+const formatSupabaseActionError = (error, entityName) => {
+  const message = error?.message || 'Unknown API error.';
+  return message;
+};
+
+const API_URL = import.meta.env.PROD 
+  ? '/api' 
+  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787/api');
+
+const apiFetch = async (endpoint, options = {}) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'API Error');
+  }
+  return data;
+};
+
 export function FinanceProvider({ children }) {
   const { user } = useAuth();
   const userId = user?.id;
@@ -32,6 +65,7 @@ export function FinanceProvider({ children }) {
   const [goals, setGoals] = useState([]);
   const [categories, setCategoriesLocal] = useState(defaultCategories);
   const [dataLoading, setDataLoading] = useState(true);
+  const [actionError, setActionError] = useState('');
 
   const refreshData = useCallback(async () => {
     if (!userId) return false;
@@ -39,54 +73,53 @@ export function FinanceProvider({ children }) {
     setDataLoading(true);
 
     const [expRes, goalRes, settingsRes] = await Promise.all([
-      supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('goals')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', userId)
-        .single(),
+      apiFetch(`/expenses?userId=${userId}`)
+        .then(res => ({ data: res.data }))
+        .catch(err => ({ error: err })),
+      apiFetch(`/goals?userId=${userId}`)
+        .then(res => ({ data: res.data }))
+        .catch(err => ({ error: err })),
+      apiFetch(`/settings?userId=${userId}`)
+        .then(res => ({ data: res.data }))
+        .catch(err => ({ error: err }))
     ]);
 
-    const settingsMissing = settingsRes.error?.code === 'PGRST116';
-    if (expRes.error || goalRes.error || (settingsRes.error && !settingsMissing)) {
-      console.error('refreshData error:', {
-        expenses: expRes.error?.message,
-        goals: goalRes.error?.message,
-        settings: settingsRes.error?.message,
-      });
-      setDataLoading(false);
-      return false;
+    // Process expenses independently
+    if (expRes.error) {
+      console.error('expenses fetch error:', expRes.error);
+      setActionError(formatSupabaseActionError(expRes.error, 'expenses'));
+    } else {
+      console.log('Fetched expenses:', expRes.data);
+      setTransactions(
+        (expRes.data || []).map((r) => ({
+          id: r.id,
+          title: r.title,
+          amount: Number(r.amount),
+          category: r.category,
+          date: r.created_at ? (r.created_at.includes('Z') || r.created_at.includes('+') ? r.created_at : r.created_at + 'Z') : new Date().toISOString(),
+          mood: r.mood || null,
+          note: r.note || null,
+        })),
+      );
     }
 
-    setTransactions(
-      (expRes.data || []).map((r) => ({
-        id: r.id,
-        title: r.title,
-        amount: Number(r.amount),
-        category: r.category,
-        date: r.date,
-        mood: r.mood,
-        note: r.note,
-      })),
-    );
-
-    setGoals(
-      (goalRes.data || []).map((r) => ({
-        id: r.id,
-        title: r.title,
-        target: Number(r.target),
-        saved: Number(r.saved),
-      })),
-    );
+    // Process goals independently
+    if (goalRes.error) {
+      console.error('goals fetch error:', goalRes.error);
+    } else {
+      console.log('Fetched goals:', goalRes.data);
+      const localGoalTitles = JSON.parse(localStorage.getItem(`goal_titles_${userId}`) || '{}');
+      setGoals(
+        (goalRes.data || [])
+          .filter(r => r.name || r.title || localGoalTitles[r.id])
+          .map((r) => ({
+          id: r.id,
+          title: r.title || r.name || localGoalTitles[r.id] || 'Unnamed Goal',
+          target: Number(r.target),
+          saved: Number(r.saved),
+        })),
+      );
+    }
 
     if (settingsRes.data) {
       setMonthlyBudgetLocal(Number(settingsRes.data.monthly_budget));
@@ -95,14 +128,26 @@ export function FinanceProvider({ children }) {
         setCategoriesLocal(storedCats);
       }
     } else {
-      await supabase.from('user_settings').insert({
-        user_id: userId,
-        monthly_budget: 0,
-        categories: defaultCategories,
-      });
+      // Fallback to localStorage
+      const localBudget = localStorage.getItem(`budget_${userId}`);
+      if (localBudget) setMonthlyBudgetLocal(Number(localBudget));
+      
+      const localCats = localStorage.getItem(`cats_${userId}`);
+      if (localCats) setCategoriesLocal(JSON.parse(localCats));
+
+      // Attempt to create the row via API
+      apiFetch(`/settings`, {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: userId,
+          monthly_budget: Number(localBudget) || 0,
+          categories: localCats ? JSON.parse(localCats) : defaultCategories,
+        })
+      }).catch(() => {});
     }
 
     setDataLoading(false);
+    setActionError('');
     return true;
   }, [userId]);
 
@@ -142,12 +187,13 @@ export function FinanceProvider({ children }) {
       .filter((tx) => tx.amount > 0)
       .reduce((sum, tx) => sum + tx.amount, 0);
     const expenses = monthExpenses.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-    const remaining = monthlyBudget - expenses;
+    const totalSavings = goals.reduce((sum, g) => sum + (Number(g.saved) || 0), 0);
+    const remaining = monthlyBudget - expenses - totalSavings;
     const today = new Date();
     const dayOfMonth = today.getDate();
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     const spendingRate = expenses / Math.max(1, dayOfMonth);
-    const predictedMonthEnd = monthlyBudget - Math.round(spendingRate * daysInMonth);
+    const predictedMonthEnd = monthlyBudget - totalSavings - Math.round(spendingRate * daysInMonth);
 
     const categoryTotals = monthExpenses
       .reduce((acc, tx) => {
@@ -155,16 +201,19 @@ export function FinanceProvider({ children }) {
         return acc;
       }, {});
 
+    const totalSpent = expenses + totalSavings;
+
     return {
       income,
       expenses,
+      totalSavings,
       remaining,
       balance: income - expenses,
-      spentPercent: Math.min(100, Math.round((expenses / Math.max(1, monthlyBudget)) * 100)),
+      spentPercent: Math.min(100, Math.round((totalSpent / Math.max(1, monthlyBudget)) * 100)),
       predictedMonthEnd,
       categoryTotals,
     };
-  }, [monthlyBudget, transactions]);
+  }, [monthlyBudget, transactions, goals]);
 
   // ------------------------------------------------------------------
   // CRUD actions — write to Supabase, optimistic local updates
@@ -174,28 +223,28 @@ export function FinanceProvider({ children }) {
       if (!userId) return false;
       const normalizedAmount = Number(amount);
       if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return false;
+      setActionError('');
 
-      const row = {
+      const payload = {
         user_id: userId,
         title: title || note || `${category || 'Other'} Expense`,
         amount: -Math.abs(normalizedAmount),
         category: category || 'Other',
-        date,
-        mood,
-        note,
       };
 
-      const { error } = await supabase
-        .from('expenses')
-        .insert(row);
-
-      if (error) {
-        console.error('addExpense error:', error.message);
+      try {
+        const res = await apiFetch(`/expenses`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        console.log('addExpense success:', res.data);
+        await refreshData();
+        return true;
+      } catch (error) {
+        console.error('addExpense error:', error);
+        setActionError(error.message);
         return false;
       }
-
-      await refreshData();
-      return true;
     },
     [userId, refreshData],
   );
@@ -203,68 +252,118 @@ export function FinanceProvider({ children }) {
   const addGoal = useCallback(
     async ({ title, target }) => {
       if (!userId) return false;
+      const trimmedTitle = title?.trim();
+      const normalizedTarget = Number(target);
+      if (!trimmedTitle || !Number.isFinite(normalizedTarget) || normalizedTarget <= 0) return false;
+      setActionError('');
 
-      const { data, error } = await supabase
-        .from('goals')
-        .insert({ user_id: userId, title: title.trim(), target: Number(target), saved: 0 })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('addGoal error:', error.message);
+      try {
+        const res = await apiFetch(`/goals`, {
+          method: 'POST',
+          body: JSON.stringify({ user_id: userId, target: normalizedTarget, saved: 0, title: trimmedTitle }),
+        });
+        
+        const newGoal = res.data;
+        if (newGoal) {
+          const localGoalTitles = JSON.parse(localStorage.getItem(`goal_titles_${userId}`) || '{}');
+          localGoalTitles[newGoal.id] = trimmedTitle;
+          localStorage.setItem(`goal_titles_${userId}`, JSON.stringify(localGoalTitles));
+        }
+        
+        console.log('addGoal success:', res.data);
+        await refreshData();
+        return true;
+      } catch (error) {
+        console.error('addGoal error:', error);
+        setActionError(error.message);
         return false;
       }
-
-      setGoals((prev) => [
-        ...prev,
-        { id: data.id, title: data.title, target: Number(data.target), saved: Number(data.saved) },
-      ]);
-      return true;
     },
-    [userId],
+    [userId, refreshData],
   );
 
   const removeGoal = useCallback(async (id) => {
     if (!id) return false;
-    const { error } = await supabase.from('goals').delete().eq('id', id);
-    if (error) {
-      console.error('removeGoal error:', error.message);
+    setActionError('');
+    
+    try {
+      await apiFetch(`/goals/${id}`, { method: 'DELETE' });
+      setGoals((prev) => prev.filter((g) => g.id !== id));
+      
+      if (userId) {
+        const localGoalTitles = JSON.parse(localStorage.getItem(`goal_titles_${userId}`) || '{}');
+        if (localGoalTitles[id]) {
+          delete localGoalTitles[id];
+          localStorage.setItem(`goal_titles_${userId}`, JSON.stringify(localGoalTitles));
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('removeGoal error:', error);
+      setActionError(error.message);
       return false;
     }
-    setGoals((prev) => prev.filter((g) => g.id !== id));
-    return true;
-  }, []);
+  }, [userId]);
 
   const addContribution = useCallback(async (id, amount) => {
     const goal = goals.find((g) => g.id === id);
     if (!goal) return false;
+    const normalizedAmount = Number(amount);
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return false;
+    setActionError('');
 
-    const newSaved = goal.saved + Number(amount);
-    const { error } = await supabase
-      .from('goals')
-      .update({ saved: newSaved })
-      .eq('id', id);
-
-    if (error) {
-      console.error('addContribution error:', error.message);
+    const newSaved = goal.saved + normalizedAmount;
+    
+    try {
+      await apiFetch(`/goals/${id}/contribute`, {
+        method: 'PATCH',
+        body: JSON.stringify({ saved: newSaved })
+      });
+      setGoals((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, saved: newSaved } : g)),
+      );
+      return true;
+    } catch (error) {
+      console.error('addContribution error:', error);
+      setActionError(error.message);
       return false;
     }
+  }, [goals]);
 
-    setGoals((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, saved: newSaved } : g)),
-    );
-    return true;
+  const reduceContribution = useCallback(async (id, amount) => {
+    const goal = goals.find((g) => g.id === id);
+    if (!goal) return false;
+    const normalizedAmount = Number(amount);
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return false;
+    setActionError('');
+
+    const newSaved = Math.max(0, goal.saved - normalizedAmount);
+    
+    try {
+      await apiFetch(`/goals/${id}/contribute`, {
+        method: 'PATCH',
+        body: JSON.stringify({ saved: newSaved })
+      });
+      setGoals((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, saved: newSaved } : g)),
+      );
+      return true;
+    } catch (error) {
+      console.error('reduceContribution error:', error);
+      setActionError(error.message);
+      return false;
+    }
   }, [goals]);
 
   const setBudget = useCallback(
     async (nextBudget) => {
       setMonthlyBudgetLocal(nextBudget);
-      const { error } = await supabase
-        .from('user_settings')
-        .update({ monthly_budget: nextBudget })
-        .eq('user_id', userId);
-
-      if (error) console.error('setBudget error:', error.message);
+      localStorage.setItem(`budget_${userId}`, nextBudget);
+      
+      apiFetch(`/settings`, {
+        method: 'PATCH',
+        body: JSON.stringify({ user_id: userId, monthly_budget: nextBudget })
+      }).catch(err => console.error('setBudget error:', err));
     },
     [userId],
   );
@@ -280,13 +379,12 @@ export function FinanceProvider({ children }) {
       };
       const updated = [...categories, newCat];
       setCategoriesLocal(updated);
+      localStorage.setItem(`cats_${userId}`, JSON.stringify(updated));
 
-      const { error } = await supabase
-        .from('user_settings')
-        .update({ categories: updated })
-        .eq('user_id', userId);
-
-      if (error) console.error('addCategory error:', error.message);
+      apiFetch(`/settings`, {
+        method: 'PATCH',
+        body: JSON.stringify({ user_id: userId, categories: updated })
+      }).catch(err => console.error('addCategory error:', err));
     },
     [categories, userId],
   );
@@ -295,13 +393,12 @@ export function FinanceProvider({ children }) {
     async (id) => {
       const updated = categories.filter((c) => c.id !== id);
       setCategoriesLocal(updated);
+      localStorage.setItem(`cats_${userId}`, JSON.stringify(updated));
 
-      const { error } = await supabase
-        .from('user_settings')
-        .update({ categories: updated })
-        .eq('user_id', userId);
-
-      if (error) console.error('removeCategory error:', error.message);
+      apiFetch(`/settings`, {
+        method: 'PATCH',
+        body: JSON.stringify({ user_id: userId, categories: updated })
+      }).catch(err => console.error('removeCategory error:', err));
     },
     [categories, userId],
   );
@@ -316,10 +413,12 @@ export function FinanceProvider({ children }) {
     goals,
     categories,
     metrics,
+    actionError,
     addExpense,
     addGoal,
     removeGoal,
     addContribution,
+    reduceContribution,
     addCategory,
     removeCategory,
     refreshData,

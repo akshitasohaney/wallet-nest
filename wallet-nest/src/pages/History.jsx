@@ -1,4 +1,4 @@
-import { History as HistoryIcon, Download, Search, FileText } from 'lucide-react';
+import { History as HistoryIcon, Search, FileText } from 'lucide-react';
 import { useFinance } from '../hooks/useFinance';
 import { useState, useMemo } from 'react';
 
@@ -29,6 +29,7 @@ export default function History() {
     });
   }, [transactions, search, filterCat, dateRange]);
 
+
   return (
     <div className="max-w-7xl mx-auto animation-fade-in h-[calc(100vh-6rem)] flex flex-col gap-8 pb-8 px-2">
       <div className="flex justify-between items-end flex-shrink-0 mb-4">
@@ -40,9 +41,6 @@ export default function History() {
             Ledger History
           </h2>
         </div>
-        <button className="btn-secondary shadow-lg shadow-black/5 hover:shadow-black/10 border border-gray-200 dark:border-white/10 font-bold tracking-tight px-6 py-3 rounded-2xl transform transition-transform hover:-translate-y-1">
-          <Download size={18} strokeWidth={2.5} /><span>EXPORT CSV</span>
-        </button>
       </div>
 
       <div className="card-premium flex flex-col flex-1 min-h-0 overflow-hidden border border-[var(--border-color)] shadow-xl">

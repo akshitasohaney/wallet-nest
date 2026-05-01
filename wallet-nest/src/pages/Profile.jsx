@@ -8,6 +8,7 @@ export default function Profile() {
   const { monthlyBudget, goals, metrics } = useFinance();
   const [name, setName] = useState(user?.name || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [message, setMessage] = useState('');
 
   const suggestions = useMemo(() => {
@@ -24,12 +25,12 @@ export default function Profile() {
 
   const handleSave = async (event) => {
     event.preventDefault();
-    const result = await updateProfile({ name, avatar });
+    const result = await updateProfile({ name, avatar, email });
     if (!result.ok) {
       setMessage(result.message);
       return;
     }
-    setMessage('Profile updated successfully.');
+    setMessage('Profile updated successfully. (Note: Email change may require verification).');
   };
 
   return (
@@ -65,11 +66,12 @@ export default function Profile() {
               className="w-full bg-[var(--search-bg)] border border-[var(--border-color)] rounded-xl py-2.5 px-3 outline-none text-[var(--text-color)]"
             />
             <input
-              type="url"
-              value={avatar}
-              onChange={(event) => setAvatar(event.target.value)}
-              placeholder="Avatar URL (optional)"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Email Address"
               className="w-full bg-[var(--search-bg)] border border-[var(--border-color)] rounded-xl py-2.5 px-3 outline-none text-[var(--text-color)]"
+              required
             />
             <button className="btn-primary w-full" disabled={authLoading}>
               {authLoading ? 'Saving...' : 'Save Profile'}

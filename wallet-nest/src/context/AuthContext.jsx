@@ -95,21 +95,30 @@ export function AuthProvider({ children }) {
   }, []);
 
   const updateProfile = useCallback(
-    async ({ name, avatar }) => {
+    async ({ name, avatar, email }) => {
       if (!user) return { ok: false, message: 'No active session.' };
       const trimmedName = name.trim();
+      const trimmedEmail = email?.trim().toLowerCase();
       if (!trimmedName) return { ok: false, message: 'Name cannot be empty.' };
 
       setAuthLoading(true);
       try {
-        const { error } = await supabase.auth.updateUser({
+        const updatePayload = {
           data: { name: trimmedName, avatar: avatar || DEFAULT_AVATAR },
-        });
+        };
+        
+        // Only include email in the update if it's different from the current one
+        if (trimmedEmail && trimmedEmail !== user.email) {
+          updatePayload.email = trimmedEmail;
+        }
+
+        const { error } = await supabase.auth.updateUser(updatePayload);
         if (error) return { ok: false, message: error.message };
 
         setUser((prev) => ({
           ...prev,
           name: trimmedName,
+          email: trimmedEmail || prev.email,
           avatar: avatar || DEFAULT_AVATAR,
         }));
         return { ok: true };

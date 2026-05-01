@@ -4,10 +4,12 @@ import { Target, Plus, Rocket } from 'lucide-react';
 import { useFinance } from '../hooks/useFinance';
 
 export default function Goals() {
-  const { goals, addGoal, removeGoal, addContribution } = useFinance();
+  const { goals, addGoal, removeGoal, addContribution, reduceContribution, actionError } = useFinance();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [target, setTarget] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const submitGoal = async (event) => {
     event.preventDefault();
@@ -17,6 +19,11 @@ export default function Goals() {
       setTitle('');
       setTarget('');
       setShowForm(false);
+      setError('');
+      setSuccess('Goal added successfully.');
+    } else {
+      setSuccess('');
+      setError(actionError || 'Could not create goal. Please check your Supabase setup and try again.');
     }
   };
 
@@ -77,6 +84,12 @@ export default function Goals() {
           </form>
         </div>
       )}
+      {success && (
+        <p className="text-sm font-bold text-emerald-500 px-2 mb-4">{success}</p>
+      )}
+      {error && (
+        <p className="text-sm font-bold text-red-500 px-2 mb-4">{error}</p>
+      )}
 
       {goals.length === 0 && !showForm && (
         <div className="card-premium h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-gray-200 dark:border-slate-700">
@@ -103,6 +116,7 @@ export default function Goals() {
               color={nodeColor}
               onDelete={() => removeGoal(goal.id)} 
               onAddContribution={(amount) => addContribution(goal.id, amount)}
+              onReduceContribution={(amount) => reduceContribution(goal.id, amount)}
             />
           )
         })}
