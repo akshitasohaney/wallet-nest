@@ -84,13 +84,19 @@ This structure ensures scalability, maintainability, and clear separation of con
 
 ## Live Demo
 
-🔗 *Add your deployed link here*  
+🔗 **https://striking-port-467514-n9.web.app** 
 
 ---
 
 ## Screenshots
 
-*(Add screenshots of your dashboard, goals page, and AI mentor here)*
+![Dashboard](./screenshots/dashboard.png)
+![expenses](./screenshots/expenses.png)
+![Goals](./screenshots/goals.png)
+![AI Insights](./screenshots/AI_insights.png)
+![AI Mentor](./screenshots/AI-mentor.png)
+![history](./screenshots/history.png)
+![profile](./screenshots/profile.png)
 
 ---
 
@@ -178,4 +184,4 @@ wallet-nest/
 
 ## Built By:
 **[Akshita Sohaney]**  
-[GitHub Profile](#) | [LinkedIn Profile](#)
+[GitHub Profile](https://github.com/akshitasohaney) | [LinkedIn Profile](https://www.linkedin.com/in/akshita-sohaney-724841312)
