@@ -4,7 +4,7 @@ import { Target, Plus, Rocket } from 'lucide-react';
 import { useFinance } from '../hooks/useFinance';
 
 export default function Goals() {
-  const { goals, addGoal, removeGoal, addContribution, actionError } = useFinance();
+  const { goals, addGoal, removeGoal, addContribution, reduceContribution, actionError } = useFinance();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [target, setTarget] = useState('');
@@ -116,6 +116,7 @@ export default function Goals() {
               color={nodeColor}
               onDelete={() => removeGoal(goal.id)} 
               onAddContribution={(amount) => addContribution(goal.id, amount)}
+              onReduceContribution={(amount) => reduceContribution(goal.id, amount)}
             />
           )
         })}

@@ -28,15 +28,26 @@ const formatSupabaseActionError = (error, entityName) => {
   return message;
 };
 
-const API_URL = 'http://localhost:8787/api';
+const API_URL = import.meta.env.PROD 
+  ? '/api' 
+  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787/api');
 
 const apiFetch = async (endpoint, options = {}) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_URL}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -99,7 +110,9 @@ export function FinanceProvider({ children }) {
       console.log('Fetched goals:', goalRes.data);
       const localGoalTitles = JSON.parse(localStorage.getItem(`goal_titles_${userId}`) || '{}');
       setGoals(
-        (goalRes.data || []).map((r) => ({
+        (goalRes.data || [])
+          .filter(r => r.name || r.title || localGoalTitles[r.id])
+          .map((r) => ({
           id: r.id,
           title: r.title || r.name || localGoalTitles[r.id] || 'Unnamed Goal',
           target: Number(r.target),
@@ -174,12 +187,13 @@ export function FinanceProvider({ children }) {
       .filter((tx) => tx.amount > 0)
       .reduce((sum, tx) => sum + tx.amount, 0);
     const expenses = monthExpenses.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-    const remaining = monthlyBudget - expenses;
+    const totalSavings = goals.reduce((sum, g) => sum + (Number(g.saved) || 0), 0);
+    const remaining = monthlyBudget - expenses - totalSavings;
     const today = new Date();
     const dayOfMonth = today.getDate();
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     const spendingRate = expenses / Math.max(1, dayOfMonth);
-    const predictedMonthEnd = monthlyBudget - Math.round(spendingRate * daysInMonth);
+    const predictedMonthEnd = monthlyBudget - totalSavings - Math.round(spendingRate * daysInMonth);
 
     const categoryTotals = monthExpenses
       .reduce((acc, tx) => {
@@ -187,16 +201,19 @@ export function FinanceProvider({ children }) {
         return acc;
       }, {});
 
+    const totalSpent = expenses + totalSavings;
+
     return {
       income,
       expenses,
+      totalSavings,
       remaining,
       balance: income - expenses,
-      spentPercent: Math.min(100, Math.round((expenses / Math.max(1, monthlyBudget)) * 100)),
+      spentPercent: Math.min(100, Math.round((totalSpent / Math.max(1, monthlyBudget)) * 100)),
       predictedMonthEnd,
       categoryTotals,
     };
-  }, [monthlyBudget, transactions]);
+  }, [monthlyBudget, transactions, goals]);
 
   // ------------------------------------------------------------------
   // CRUD actions — write to Supabase, optimistic local updates
@@ -313,6 +330,31 @@ export function FinanceProvider({ children }) {
     }
   }, [goals]);
 
+  const reduceContribution = useCallback(async (id, amount) => {
+    const goal = goals.find((g) => g.id === id);
+    if (!goal) return false;
+    const normalizedAmount = Number(amount);
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return false;
+    setActionError('');
+
+    const newSaved = Math.max(0, goal.saved - normalizedAmount);
+    
+    try {
+      await apiFetch(`/goals/${id}/contribute`, {
+        method: 'PATCH',
+        body: JSON.stringify({ saved: newSaved })
+      });
+      setGoals((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, saved: newSaved } : g)),
+      );
+      return true;
+    } catch (error) {
+      console.error('reduceContribution error:', error);
+      setActionError(error.message);
+      return false;
+    }
+  }, [goals]);
+
   const setBudget = useCallback(
     async (nextBudget) => {
       setMonthlyBudgetLocal(nextBudget);
@@ -376,6 +418,7 @@ export function FinanceProvider({ children }) {
     addGoal,
     removeGoal,
     addContribution,
+    reduceContribution,
     addCategory,
     removeCategory,
     refreshData,

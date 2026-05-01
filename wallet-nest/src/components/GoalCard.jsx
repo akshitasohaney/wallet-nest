@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Target, Trash2, PlusCircle, Check, Award, Flame, Sprout } from 'lucide-react';
 
-export default function GoalCard({ title, current, target, color = 'emerald', onDelete, onAddContribution }) {
+export default function GoalCard({ title, current, target, color = 'emerald', onDelete, onAddContribution, onReduceContribution }) {
   const percent = Math.min(Math.round((current / target) * 100), 100);
-  const [isAdding, setIsAdding] = useState(false);
+  const [activeAction, setActiveAction] = useState(null);
   const [contributeAmount, setContributeAmount] = useState('');
   
   const colorMap = {
@@ -81,62 +81,83 @@ export default function GoalCard({ title, current, target, color = 'emerald', on
       
       {/* Call to Action */}
       <div className="mt-8 relative z-10 pt-5 border-t border-gray-100 dark:border-slate-800">
-        {onAddContribution && percent < 100 && (
-          <div>
-            {!isAdding ? (
-              <button 
-                onClick={() => setIsAdding(true)} 
-                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-xs font-black tracking-widest text-gray-600 dark:text-gray-300 bg-gray-50/80 hover:bg-gray-100 dark:bg-slate-800/80 dark:hover:bg-slate-700 transition-colors border border-gray-200 dark:border-slate-700 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <PlusCircle size={16} strokeWidth={3} className={textClass} /> DROP FUNDS
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">Rs</span>
-                  <input 
-                    type="number" 
-                    value={contributeAmount}
-                    onChange={(e) => setContributeAmount(e.target.value)}
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Enter' && contributeAmount) {
-                        const updated = await onAddContribution(contributeAmount);
-                        if (updated) {
-                          setIsAdding(false);
-                          setContributeAmount('');
-                        }
-                      }
-                    }}
-                    placeholder="Amount"
-                    className="w-full bg-white dark:bg-slate-900 border-2 border-emerald-500 rounded-xl py-3 pl-9 pr-3 focus:ring-4 focus:ring-emerald-500/20 outline-none text-base font-black text-[var(--text-color)] shadow-inner transition-all h-12 block"
-                    autoFocus
-                  />
-                </div>
-                <button 
-                  onClick={async () => {
-                    if (contributeAmount) {
-                      const updated = await onAddContribution(contributeAmount);
-                      if (updated) {
-                        setIsAdding(false);
-                        setContributeAmount('');
-                      }
-                      return;
-                    }
-                    setIsAdding(false);
-                    setContributeAmount('');
-                  }}
-                  className={`h-12 w-12 flex-shrink-0 bg-gradient-to-br ${gradientClass} ${toClass} flex items-center justify-center text-white rounded-xl shadow-lg border border-white/20 transition-all hover:scale-105 active:scale-95`}
-                >
-                  <Check size={20} strokeWidth={3} />
-                </button>
+        {!activeAction ? (
+          <div className="flex flex-col gap-3">
+            {percent === 100 && (
+              <div className="flex items-center justify-center gap-2 py-3 text-yellow-600 dark:text-yellow-500 font-black tracking-widest uppercase text-xs bg-yellow-50 dark:bg-yellow-500/10 rounded-xl border border-yellow-200 dark:border-yellow-500/20 shadow-sm">
+                 <Award size={18} strokeWidth={2.5} /> FULLY FUNDED
               </div>
             )}
+            <div className="flex gap-3">
+              {percent < 100 && onAddContribution && (
+                <button 
+                  onClick={() => setActiveAction('add')} 
+                  className="flex flex-1 items-center justify-center gap-2 py-3.5 rounded-xl text-xs font-black tracking-widest text-gray-600 dark:text-gray-300 bg-gray-50/80 hover:bg-gray-100 dark:bg-slate-800/80 dark:hover:bg-slate-700 transition-colors border border-gray-200 dark:border-slate-700 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <PlusCircle size={16} strokeWidth={3} className={textClass} /> DROP FUNDS
+                </button>
+              )}
+              {current > 0 && onReduceContribution && (
+                <button 
+                  onClick={() => setActiveAction('reduce')} 
+                  className="flex flex-1 items-center justify-center gap-2 py-3.5 rounded-xl text-xs font-black tracking-widest text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-100 dark:border-red-500/20 shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  WITHDRAW
+                </button>
+              )}
+            </div>
           </div>
-        )}
-        
-        {percent === 100 && (
-          <div className="flex items-center justify-center gap-2 py-3 text-yellow-600 dark:text-yellow-500 font-black tracking-widest uppercase text-xs bg-yellow-50 dark:bg-yellow-500/10 rounded-xl border border-yellow-200 dark:border-yellow-500/20 shadow-sm">
-             <Award size={18} strokeWidth={2.5} /> FULLY FUNDED
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">Rs</span>
+              <input 
+                type="number" 
+                value={contributeAmount}
+                onChange={(e) => setContributeAmount(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter' && contributeAmount) {
+                    const amount = Number(contributeAmount);
+                    let updated = false;
+                    if (activeAction === 'add') {
+                      updated = await onAddContribution(amount);
+                    } else if (activeAction === 'reduce' && onReduceContribution) {
+                      updated = await onReduceContribution(amount);
+                    }
+                    if (updated) {
+                      setActiveAction(null);
+                      setContributeAmount('');
+                    }
+                  }
+                }}
+                placeholder={activeAction === 'add' ? "Amount" : "Withdraw Amount"}
+                className={`w-full bg-white dark:bg-slate-900 border-2 ${activeAction === 'add' ? 'border-emerald-500 focus:ring-emerald-500/20' : 'border-red-500 focus:ring-red-500/20'} rounded-xl py-3 pl-9 pr-3 focus:ring-4 outline-none text-base font-black text-[var(--text-color)] shadow-inner transition-all h-12 block`}
+                autoFocus
+              />
+            </div>
+            <button 
+              onClick={async () => {
+                if (contributeAmount) {
+                  const amount = Number(contributeAmount);
+                  let updated = false;
+                  if (activeAction === 'add') {
+                    updated = await onAddContribution(amount);
+                  } else if (activeAction === 'reduce' && onReduceContribution) {
+                    updated = await onReduceContribution(amount);
+                  }
+                  if (updated) {
+                    setActiveAction(null);
+                    setContributeAmount('');
+                  }
+                  return;
+                }
+                setActiveAction(null);
+                setContributeAmount('');
+              }}
+              className={`h-12 w-12 flex-shrink-0 bg-gradient-to-br ${activeAction === 'add' ? `${gradientClass} ${toClass}` : 'from-red-400 to-red-600'} flex items-center justify-center text-white rounded-xl shadow-lg border border-white/20 transition-all hover:scale-105 active:scale-95`}
+            >
+              <Check size={20} strokeWidth={3} />
+            </button>
           </div>
         )}
       </div>

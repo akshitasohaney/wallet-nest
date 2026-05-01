@@ -23,38 +23,74 @@ export const expenseService = {
 };
 
 export const goalService = {
-  async getAllGoals(userId) {
+  async getAllGoals(userId, token) {
     if (!userId) throw new Error('user_id is required');
-    const { data, error } = await supabase
+    let client = supabase;
+    if (token) {
+      const { createClient } = await import('@supabase/supabase-js');
+      client = createClient(
+        process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+        process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      );
+    }
+    const { data, error } = await client
       .from('goals')
-      .select('id, user_id, target, saved, created_at')
+      .select('id, user_id, name, target, saved, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },
 
-  async addGoal(goalData) {
-    const { data, error } = await supabase
+  async addGoal(goalData, token) {
+    let client = supabase;
+    if (token) {
+      const { createClient } = await import('@supabase/supabase-js');
+      client = createClient(
+        process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+        process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      );
+    }
+    const { data, error } = await client
       .from('goals')
       .insert([goalData])
-      .select('id, user_id, target, saved, created_at');
+      .select('id, user_id, name, target, saved, created_at');
     if (error) throw error;
     return data[0];
   },
 
-  async deleteGoal(id) {
-    const { error } = await supabase.from('goals').delete().eq('id', id);
+  async deleteGoal(id, token) {
+    let client = supabase;
+    if (token) {
+      const { createClient } = await import('@supabase/supabase-js');
+      client = createClient(
+        process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+        process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      );
+    }
+    const { error } = await client.from('goals').delete().eq('id', id);
     if (error) throw error;
     return true;
   },
 
-  async updateGoalSaved(id, savedAmount) {
-    const { data, error } = await supabase
+  async updateGoalSaved(id, savedAmount, token) {
+    let client = supabase;
+    if (token) {
+      const { createClient } = await import('@supabase/supabase-js');
+      client = createClient(
+        process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+        process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      );
+    }
+    const { data, error } = await client
       .from('goals')
       .update({ saved: savedAmount })
       .eq('id', id)
-      .select('id, user_id, target, saved, created_at');
+      .select('id, user_id, name, target, saved, created_at');
     if (error) throw error;
     return data[0];
   }

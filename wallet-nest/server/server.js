@@ -41,14 +41,37 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'wallet-nest-api' });
 });
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // API Routes
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/finance-chat', chatRoutes); // Preserved existing AI endpoint
 
-// 404 Route Handler
-app.use((_req, res) => {
+// Serve static frontend files in production
+const distPath = path.join(__dirname, '../dist');
+console.log('Checking dist path:', distPath, 'Exists:', fs.existsSync(distPath));
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  
+  // Catch-all middleware to serve the React app for non-API routes
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      res.sendFile(path.join(distPath, 'index.html'));
+    } else {
+      next();
+    }
+  });
+}
+
+// 404 Route Handler for API
+app.use('/api', (_req, res) => {
   res.status(404).json({ success: false, error: 'API Endpoint Not Found' });
 });
 
