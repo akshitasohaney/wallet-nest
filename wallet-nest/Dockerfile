@@ -1,56 +1,45 @@
 # Build stage for frontend
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app
+
+# Accept build-time env vars so Vite can bake them into the bundle
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_API_BASE_URL=/api
+ARG VITE_FINANCE_CHAT_PROXY_URL=/api/finance-chat
+
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_FINANCE_CHAT_PROXY_URL=$VITE_FINANCE_CHAT_PROXY_URL
+
 COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
 
-# Build stage for backend
+# Build stage for backend (production deps only)
 FROM node:22-alpine AS backend-builder
 WORKDIR /app
 COPY package*.json ./
-# Only install production dependencies for the backend
 RUN npm install --omit=dev
 COPY server ./server
 
-# Final production stage
+# Final production image
 FROM node:22-alpine
 WORKDIR /app
+
 # Copy the built frontend
 COPY --from=frontend-builder /app/dist ./dist
-# Copy the backend code and dependencies
+
+# Copy the backend code and production dependencies
 COPY --from=backend-builder /app/node_modules ./node_modules
 COPY --from=backend-builder /app/server ./server
 COPY package.json ./
 
-# Expose the port the app runs on. Google Cloud Run dynamically assigns a PORT env var.
+# Google Cloud Run dynamically assigns PORT at runtime
 ENV PORT=8080
+ENV NODE_ENV=production
 EXPOSE 8080
 
-# Environment variables needed by the backend
-ENV NODE_ENV=production
-
-# Start the server
 CMD ["npm", "run", "server"]
-FROM node:20-alpine
-
-WORKDIR /app
-
-# Copy package.json and package-lock.json
-COPY package*.json ./
-
-# Install dependencies (only production dependencies for backend)
-# Alternatively we could install all, but let's install what's in package.json.
-RUN npm install --production=false
-
-# Copy only the server directory and any root level configuration files
-# required by the backend
-COPY server/ ./server/
-COPY .env* ./
-
-# Expose the proxy port
-EXPOSE 8787
-
-# Command to run the proxy
-CMD ["npm", "run", "finance-chat-proxy"]
