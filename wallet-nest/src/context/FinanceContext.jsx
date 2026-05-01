@@ -24,21 +24,25 @@ const isInCurrentMonth = (dateValue) => {
 };
 
 const formatSupabaseActionError = (error, entityName) => {
-  const message = error?.message || 'Unknown Supabase error.';
-  const code = error?.code || '';
-  if (!supabaseConfigured) {
-    return 'Supabase environment variables are missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.';
-  }
-  if (code === '42501') {
-    return `Permission denied while writing ${entityName}. Check RLS policies for auth.uid() = user_id.`;
-  }
-  if (code === '42P01') {
-    return `${entityName} table not found. Verify Supabase schema has this table.`;
-  }
-  if (code === '23502') {
-    return `Schema mismatch while saving ${entityName}. Verify required columns and payload fields.`;
-  }
+  const message = error?.message || 'Unknown API error.';
   return message;
+};
+
+const API_URL = 'http://localhost:8787/api';
+
+const apiFetch = async (endpoint, options = {}) => {
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'API Error');
+  }
+  return data;
 };
 
 export function FinanceProvider({ children }) {
@@ -54,68 +58,55 @@ export function FinanceProvider({ children }) {
 
   const refreshData = useCallback(async () => {
     if (!userId) return false;
-    if (!supabaseConfigured) {
-      setActionError('Supabase environment variables are missing. Update your .env and restart the app.');
-      return false;
-    }
 
     setDataLoading(true);
 
     const [expRes, goalRes, settingsRes] = await Promise.all([
-      supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('goals')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', userId)
-        .single(),
+      apiFetch(`/expenses?userId=${userId}`)
+        .then(res => ({ data: res.data }))
+        .catch(err => ({ error: err })),
+      apiFetch(`/goals?userId=${userId}`)
+        .then(res => ({ data: res.data }))
+        .catch(err => ({ error: err })),
+      apiFetch(`/settings?userId=${userId}`)
+        .then(res => ({ data: res.data }))
+        .catch(err => ({ error: err }))
     ]);
 
-    const settingsMissing = settingsRes.error?.code === 'PGRST116';
-    if (expRes.error || goalRes.error || (settingsRes.error && !settingsMissing)) {
-      console.error('refreshData error:', {
-        expenses: expRes.error?.message,
-        goals: goalRes.error?.message,
-        settings: settingsRes.error?.message,
-      });
-      setActionError(
-        formatSupabaseActionError(
-          expRes.error || goalRes.error || settingsRes.error,
-          expRes.error ? 'expenses' : goalRes.error ? 'goals' : 'user settings',
-        ),
+    // Process expenses independently
+    if (expRes.error) {
+      console.error('expenses fetch error:', expRes.error);
+      setActionError(formatSupabaseActionError(expRes.error, 'expenses'));
+    } else {
+      console.log('Fetched expenses:', expRes.data);
+      setTransactions(
+        (expRes.data || []).map((r) => ({
+          id: r.id,
+          title: r.title,
+          amount: Number(r.amount),
+          category: r.category,
+          date: r.created_at ? (r.created_at.includes('Z') || r.created_at.includes('+') ? r.created_at : r.created_at + 'Z') : new Date().toISOString(),
+          mood: r.mood || null,
+          note: r.note || null,
+        })),
       );
-      setDataLoading(false);
-      return false;
     }
 
-    setTransactions(
-      (expRes.data || []).map((r) => ({
-        id: r.id,
-        title: r.title,
-        amount: Number(r.amount),
-        category: r.category,
-        date: r.date,
-        mood: r.mood,
-        note: r.note,
-      })),
-    );
-
-    setGoals(
-      (goalRes.data || []).map((r) => ({
-        id: r.id,
-        title: r.title,
-        target: Number(r.target),
-        saved: Number(r.saved),
-      })),
-    );
+    // Process goals independently
+    if (goalRes.error) {
+      console.error('goals fetch error:', goalRes.error);
+    } else {
+      console.log('Fetched goals:', goalRes.data);
+      const localGoalTitles = JSON.parse(localStorage.getItem(`goal_titles_${userId}`) || '{}');
+      setGoals(
+        (goalRes.data || []).map((r) => ({
+          id: r.id,
+          title: r.title || r.name || localGoalTitles[r.id] || 'Unnamed Goal',
+          target: Number(r.target),
+          saved: Number(r.saved),
+        })),
+      );
+    }
 
     if (settingsRes.data) {
       setMonthlyBudgetLocal(Number(settingsRes.data.monthly_budget));
@@ -124,11 +115,22 @@ export function FinanceProvider({ children }) {
         setCategoriesLocal(storedCats);
       }
     } else {
-      await supabase.from('user_settings').insert({
-        user_id: userId,
-        monthly_budget: 0,
-        categories: defaultCategories,
-      });
+      // Fallback to localStorage
+      const localBudget = localStorage.getItem(`budget_${userId}`);
+      if (localBudget) setMonthlyBudgetLocal(Number(localBudget));
+      
+      const localCats = localStorage.getItem(`cats_${userId}`);
+      if (localCats) setCategoriesLocal(JSON.parse(localCats));
+
+      // Attempt to create the row via API
+      apiFetch(`/settings`, {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: userId,
+          monthly_budget: Number(localBudget) || 0,
+          categories: localCats ? JSON.parse(localCats) : defaultCategories,
+        })
+      }).catch(() => {});
     }
 
     setDataLoading(false);
@@ -202,36 +204,30 @@ export function FinanceProvider({ children }) {
   const addExpense = useCallback(
     async ({ title, note, amount, category, date, mood }) => {
       if (!userId) return false;
-      if (!supabaseConfigured) {
-        setActionError('Supabase environment variables are missing. Update your .env and restart the app.');
-        return false;
-      }
       const normalizedAmount = Number(amount);
       if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return false;
       setActionError('');
 
-      const row = {
+      const payload = {
         user_id: userId,
         title: title || note || `${category || 'Other'} Expense`,
         amount: -Math.abs(normalizedAmount),
         category: category || 'Other',
-        date,
-        mood,
-        note,
       };
 
-      const { error } = await supabase
-        .from('expenses')
-        .insert(row);
-
-      if (error) {
-        console.error('addExpense error:', error.message);
-        setActionError(formatSupabaseActionError(error, 'expenses'));
+      try {
+        const res = await apiFetch(`/expenses`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        console.log('addExpense success:', res.data);
+        await refreshData();
+        return true;
+      } catch (error) {
+        console.error('addExpense error:', error);
+        setActionError(error.message);
         return false;
       }
-
-      await refreshData();
-      return true;
     },
     [userId, refreshData],
   );
@@ -239,87 +235,93 @@ export function FinanceProvider({ children }) {
   const addGoal = useCallback(
     async ({ title, target }) => {
       if (!userId) return false;
-      if (!supabaseConfigured) {
-        setActionError('Supabase environment variables are missing. Update your .env and restart the app.');
-        return false;
-      }
       const trimmedTitle = title?.trim();
       const normalizedTarget = Number(target);
       if (!trimmedTitle || !Number.isFinite(normalizedTarget) || normalizedTarget <= 0) return false;
       setActionError('');
 
-      const { error } = await supabase
-        .from('goals')
-        .insert({ user_id: userId, title: trimmedTitle, target: normalizedTarget, saved: 0 });
-
-      if (error) {
-        console.error('addGoal error:', error.message);
-        setActionError(formatSupabaseActionError(error, 'goals'));
+      try {
+        const res = await apiFetch(`/goals`, {
+          method: 'POST',
+          body: JSON.stringify({ user_id: userId, target: normalizedTarget, saved: 0, title: trimmedTitle }),
+        });
+        
+        const newGoal = res.data;
+        if (newGoal) {
+          const localGoalTitles = JSON.parse(localStorage.getItem(`goal_titles_${userId}`) || '{}');
+          localGoalTitles[newGoal.id] = trimmedTitle;
+          localStorage.setItem(`goal_titles_${userId}`, JSON.stringify(localGoalTitles));
+        }
+        
+        console.log('addGoal success:', res.data);
+        await refreshData();
+        return true;
+      } catch (error) {
+        console.error('addGoal error:', error);
+        setActionError(error.message);
         return false;
       }
-
-      await refreshData();
-      return true;
     },
     [userId, refreshData],
   );
 
   const removeGoal = useCallback(async (id) => {
     if (!id) return false;
-    if (!supabaseConfigured) {
-      setActionError('Supabase environment variables are missing. Update your .env and restart the app.');
-      return false;
-    }
     setActionError('');
-    const { error } = await supabase.from('goals').delete().eq('id', id);
-    if (error) {
-      console.error('removeGoal error:', error.message);
-      setActionError(formatSupabaseActionError(error, 'goals'));
+    
+    try {
+      await apiFetch(`/goals/${id}`, { method: 'DELETE' });
+      setGoals((prev) => prev.filter((g) => g.id !== id));
+      
+      if (userId) {
+        const localGoalTitles = JSON.parse(localStorage.getItem(`goal_titles_${userId}`) || '{}');
+        if (localGoalTitles[id]) {
+          delete localGoalTitles[id];
+          localStorage.setItem(`goal_titles_${userId}`, JSON.stringify(localGoalTitles));
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('removeGoal error:', error);
+      setActionError(error.message);
       return false;
     }
-    setGoals((prev) => prev.filter((g) => g.id !== id));
-    return true;
-  }, []);
+  }, [userId]);
 
   const addContribution = useCallback(async (id, amount) => {
     const goal = goals.find((g) => g.id === id);
     if (!goal) return false;
-    if (!supabaseConfigured) {
-      setActionError('Supabase environment variables are missing. Update your .env and restart the app.');
-      return false;
-    }
     const normalizedAmount = Number(amount);
     if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return false;
     setActionError('');
 
     const newSaved = goal.saved + normalizedAmount;
-    const { error } = await supabase
-      .from('goals')
-      .update({ saved: newSaved })
-      .eq('id', id);
-
-    if (error) {
-      console.error('addContribution error:', error.message);
-      setActionError(formatSupabaseActionError(error, 'goals'));
+    
+    try {
+      await apiFetch(`/goals/${id}/contribute`, {
+        method: 'PATCH',
+        body: JSON.stringify({ saved: newSaved })
+      });
+      setGoals((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, saved: newSaved } : g)),
+      );
+      return true;
+    } catch (error) {
+      console.error('addContribution error:', error);
+      setActionError(error.message);
       return false;
     }
-
-    setGoals((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, saved: newSaved } : g)),
-    );
-    return true;
   }, [goals]);
 
   const setBudget = useCallback(
     async (nextBudget) => {
       setMonthlyBudgetLocal(nextBudget);
-      const { error } = await supabase
-        .from('user_settings')
-        .update({ monthly_budget: nextBudget })
-        .eq('user_id', userId);
-
-      if (error) console.error('setBudget error:', error.message);
-      if (error) setActionError(error.message || 'Failed to update budget.');
+      localStorage.setItem(`budget_${userId}`, nextBudget);
+      
+      apiFetch(`/settings`, {
+        method: 'PATCH',
+        body: JSON.stringify({ user_id: userId, monthly_budget: nextBudget })
+      }).catch(err => console.error('setBudget error:', err));
     },
     [userId],
   );
@@ -335,13 +337,12 @@ export function FinanceProvider({ children }) {
       };
       const updated = [...categories, newCat];
       setCategoriesLocal(updated);
+      localStorage.setItem(`cats_${userId}`, JSON.stringify(updated));
 
-      const { error } = await supabase
-        .from('user_settings')
-        .update({ categories: updated })
-        .eq('user_id', userId);
-
-      if (error) console.error('addCategory error:', error.message);
+      apiFetch(`/settings`, {
+        method: 'PATCH',
+        body: JSON.stringify({ user_id: userId, categories: updated })
+      }).catch(err => console.error('addCategory error:', err));
     },
     [categories, userId],
   );
@@ -350,13 +351,12 @@ export function FinanceProvider({ children }) {
     async (id) => {
       const updated = categories.filter((c) => c.id !== id);
       setCategoriesLocal(updated);
+      localStorage.setItem(`cats_${userId}`, JSON.stringify(updated));
 
-      const { error } = await supabase
-        .from('user_settings')
-        .update({ categories: updated })
-        .eq('user_id', userId);
-
-      if (error) console.error('removeCategory error:', error.message);
+      apiFetch(`/settings`, {
+        method: 'PATCH',
+        body: JSON.stringify({ user_id: userId, categories: updated })
+      }).catch(err => console.error('removeCategory error:', err));
     },
     [categories, userId],
   );
